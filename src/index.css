@@ -496,30 +496,67 @@ button, input, select {
   border-radius: var(--radius);
   padding: 16px 18px;
   box-shadow: var(--shadow);
+  overflow-x: auto;
+}
+
+/* Same shape as .org-tree: a li with one child gets a plain vertical drop
+   (the whole ancestor chain), a li with several children gets a horizontal
+   bus with a vertical drop into each one (the direct-reports row). */
+.mini-org-tree,
+.mini-org-tree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+}
+
+.mini-org-tree li {
+  position: relative;
+  padding: 18px 10px 0 10px;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
 }
 
-.mini-tree-row {
-  position: relative;
-  display: flex;
-  align-items: center;
-  padding: 5px 0;
+.mini-org-tree > li {
+  padding: 0;
 }
 
-.mini-connector-v {
+.mini-org-tree li > ul {
+  padding-left: 22px;
+}
+
+.mini-org-tree li::before,
+.mini-org-tree li::after {
+  content: '';
   position: absolute;
   top: 0;
-  width: 2px;
-  background: var(--org-line);
+  width: 50%;
+  height: 18px;
 }
 
-.mini-connector-h {
-  position: absolute;
-  top: 50%;
-  height: 2px;
-  background: var(--org-line);
-  transform: translateY(-1px);
+.mini-org-tree li::before {
+  right: 50%;
+  border-top: 2px solid var(--org-line);
+  border-right: 2px solid var(--org-line);
+}
+
+.mini-org-tree li::after {
+  left: 50%;
+  border-top: 2px solid var(--org-line);
+}
+
+.mini-org-tree li:first-child::before {
+  border-top: 0 none;
+}
+
+.mini-org-tree li:last-child::after {
+  border-top: 0 none;
+}
+
+.mini-org-tree > li::before,
+.mini-org-tree > li::after {
+  display: none;
 }
 
 .mini-person {

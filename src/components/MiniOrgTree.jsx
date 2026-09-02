@@ -1,9 +1,6 @@
 import { Link } from 'react-router-dom'
 import { avatarColor, initials } from '../utils/org'
 
-const INDENT = 24
-const ICON_CENTER = 11
-
 function MiniPerson({ person, isSelf }) {
   return (
     <span className={`mini-person ${isSelf ? 'mini-person-self' : ''}`}>
@@ -15,46 +12,45 @@ function MiniPerson({ person, isSelf }) {
   )
 }
 
-// Elbow connector: drops from the parent row's icon, then turns into this
-// row's icon (stopping at the icon's edge, not its center, so the line
-// touches the circle instead of running behind it). `continues` extends the
-// drop to the row's full height so it keeps feeding a sibling below (like a
-// file-tree's "├──" vs "└──").
-function Connector({ parentX, iconLeft, continues }) {
+// Recursed like the main OrgNode tree, so it reuses the same connector
+// rules: a li with one child (every step of the ancestor chain) gets a
+// plain vertical drop, while a li with several children (the reports row)
+// gets a horizontal bus with a vertical drop into each one.
+function ChainLevel({ chain, index, reports }) {
+  const person = chain[index]
+  const isSelf = index === chain.length - 1
+  const hasNextAncestor = index < chain.length - 1
+
   return (
-    <>
-      <span className="mini-connector-v" style={{ left: parentX, height: continues ? '100%' : '50%' }} />
-      <span className="mini-connector-h" style={{ left: parentX, width: Math.max(iconLeft - parentX, 0) }} />
-    </>
+    <li>
+      <MiniPerson person={person} isSelf={isSelf} />
+      {hasNextAncestor && (
+        <ul>
+          <ChainLevel chain={chain} index={index + 1} reports={reports} />
+        </ul>
+      )}
+      {isSelf && reports.length > 0 && (
+        <ul>
+          {reports.map((report) => (
+            <li key={report.id}>
+              <MiniPerson person={report} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
   )
 }
 
-// Compact tree: full chain from the top of the org down to this person, one
-// row per level with connecting lines, plus one extra row per direct report
-// (no grandchildren) — icons and names only, no title/department cards.
+// Compact tree: full chain from the top of the org down to this person, plus
+// one extra level for their direct reports (no grandchildren) — icons and
+// names only, no title/department cards.
 export default function MiniOrgTree({ chain, reports }) {
-  const selfLevel = chain.length - 1
-
   return (
     <div className="mini-tree">
-      {chain.map((person, i) => (
-        <div key={person.id} className="mini-tree-row" style={{ paddingLeft: `${i * INDENT}px` }}>
-          {i > 0 && (
-            <Connector parentX={(i - 1) * INDENT + ICON_CENTER} iconLeft={i * INDENT} continues={false} />
-          )}
-          <MiniPerson person={person} isSelf={i === selfLevel} />
-        </div>
-      ))}
-      {reports.map((report, i) => (
-        <div key={report.id} className="mini-tree-row" style={{ paddingLeft: `${chain.length * INDENT}px` }}>
-          <Connector
-            parentX={selfLevel * INDENT + ICON_CENTER}
-            iconLeft={chain.length * INDENT}
-            continues={i < reports.length - 1}
-          />
-          <MiniPerson person={report} />
-        </div>
-      ))}
+      <ul className="mini-org-tree">
+        <ChainLevel chain={chain} index={0} reports={reports} />
+      </ul>
     </div>
   )
 }
