@@ -12,6 +12,7 @@
   --shadow-md: 0 4px 10px rgba(16, 24, 40, 0.08);
   --radius: 12px;
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --org-line: #b7bcc6;
 
   color-scheme: light dark;
   font: 15px/1.5 var(--sans);
@@ -34,6 +35,7 @@
     --accent-contrast: #0f1115;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+    --org-line: #454b58;
   }
 }
 
@@ -590,15 +592,15 @@ button, input, select {
   padding-top: 0;
 }
 
-/* connector: vertical line up from each child */
+/* connector: vertical line from the horizontal bus down to each child's avatar */
 .org-tree ul li::before {
   content: '';
   position: absolute;
-  top: 0;
+  top: -32px;
   left: 50%;
-  width: 1px;
+  width: 2px;
   height: 32px;
-  background: var(--border);
+  background: var(--org-line);
 }
 
 /* connector: horizontal line joining siblings */
@@ -608,8 +610,8 @@ button, input, select {
   top: 0;
   left: calc(16px + 1px);
   right: calc(16px + 1px);
-  height: 1px;
-  background: var(--border);
+  height: 2px;
+  background: var(--org-line);
 }
 
 .org-tree ul li:only-child::before,
