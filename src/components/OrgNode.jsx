@@ -13,8 +13,8 @@ export default function OrgNode({ person }) {
           {initials(person.name)}
         </div>
         <div className="org-card">
-          {person.title && <div className="org-card-title">{person.title}</div>}
           <div className="org-card-name">{person.name}</div>
+          {person.title && <div className="org-card-title">{person.title}</div>}
         </div>
         {hasChildren && (
           <button
