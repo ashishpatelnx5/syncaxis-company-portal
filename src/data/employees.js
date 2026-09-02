@@ -22,6 +22,6 @@ export const employees = [
   { id: 13, employeeId: '0074', name: 'Kshitij Ram Bhosale', title: 'Robotics Engineer', department: 'DOBOT', email: '', phone: '', emergencyContact: noEmergencyContact, managerId: 3 },
   { id: 14, employeeId: '0075', name: 'Atharva Abhijit Kulkarni', title: 'Robotics Engineer', department: 'DOBOT', email: '', phone: '', emergencyContact: noEmergencyContact, managerId: 3 },
   { id: 15, employeeId: '77', name: 'Shripad Rajeshrwararao Pathak', title: '', department: '', email: '', phone: '', emergencyContact: noEmergencyContact, managerId: null },
-  { id: 16, employeeId: '78', name: 'Ashish Kumar Patel', title: 'IT & Admin, Robotics Automation', department: 'IT & Admin', email: '', phone: '', emergencyContact: noEmergencyContact, managerId: 8 },
+  { id: 16, employeeId: '78', name: 'Ashish Kumar Patel', title: 'IT & Admin, Robotics Automation', department: 'IT & Admin', email: '', phone: '', emergencyContact: noEmergencyContact, managerId: 17 },
   { id: 17, employeeId: '', name: 'Deepak Bisure', title: 'Managing Director', department: 'Executive', email: '', phone: '', emergencyContact: noEmergencyContact, managerId: null },
 ]
