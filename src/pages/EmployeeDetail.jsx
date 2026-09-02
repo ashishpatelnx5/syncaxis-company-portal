@@ -1,8 +1,8 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
 import Icon from '../components/Icon'
-import OrgNode from '../components/OrgNode'
+import MiniOrgTree from '../components/MiniOrgTree'
 import { employees } from '../data/employees'
-import { avatarColor, getWithReports, initials } from '../utils/org'
+import { avatarColor, getAncestorChain, getDirectReports, initials } from '../utils/org'
 
 export default function EmployeeDetail() {
   const { id } = useParams()
@@ -10,8 +10,8 @@ export default function EmployeeDetail() {
 
   if (!employee) return <Navigate to="/directory" replace />
 
-  const manager = employee.managerId != null ? employees.find((e) => e.id === employee.managerId) : null
-  const reports = getWithReports(employees, employee.id)?.children ?? []
+  const chain = getAncestorChain(employees, employee.id)
+  const reports = getDirectReports(employees, employee.id)
   const emergency = employee.emergencyContact ?? {}
   const hasEmergencyContact = emergency.name || emergency.relation || emergency.phone
 
@@ -33,11 +33,6 @@ export default function EmployeeDetail() {
             {employee.department && ` · ${employee.department}`}
             {employee.employeeId && ` · #${employee.employeeId}`}
           </p>
-          {manager && (
-            <p className="reports-to">
-              Reports to <Link to={`/employee/${manager.id}`}>{manager.name}</Link>
-            </p>
-          )}
         </div>
       </div>
 
@@ -100,18 +95,8 @@ export default function EmployeeDetail() {
       </div>
 
       <section className="section">
-        <h2>Direct reports</h2>
-        {reports.length > 0 ? (
-          <div className="org-chart-scroll">
-            <ul className="org-tree">
-              {reports.map((report) => (
-                <OrgNode key={report.id} person={report} />
-              ))}
-            </ul>
-          </div>
-        ) : (
-          <p className="empty-state">No one reports to {employee.name.split(' ')[0]} yet.</p>
-        )}
+        <h2>Where {employee.name.split(' ')[0]} fits</h2>
+        <MiniOrgTree chain={chain} reports={reports} />
       </section>
     </div>
   )

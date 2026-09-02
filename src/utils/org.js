@@ -17,13 +17,25 @@ export function buildTree(employees) {
   return roots
 }
 
-// Same tree, rooted at one person — their card plus everyone under them.
-export function getWithReports(employees, id) {
-  return nodesById(employees).get(id) ?? null
-}
-
 export function managerName(employees, managerId) {
   return employees.find((e) => e.id === managerId)?.name ?? null
+}
+
+// Root-to-self chain: [top of the org, ..., this person].
+export function getAncestorChain(employees, id) {
+  const byId = new Map(employees.map((e) => [e.id, e]))
+  const chain = []
+  let current = byId.get(id)
+  while (current) {
+    chain.unshift(current)
+    current = current.managerId != null ? byId.get(current.managerId) : undefined
+  }
+  return chain
+}
+
+// This person's direct reports only (no grandchildren).
+export function getDirectReports(employees, id) {
+  return employees.filter((e) => e.managerId === id)
 }
 
 export function initials(name) {

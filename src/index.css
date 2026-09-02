@@ -490,19 +490,59 @@ button, input, select {
   box-shadow: var(--shadow);
 }
 
-.reports-to {
-  margin-top: 6px;
-  font-size: 13px;
-  color: var(--text-muted);
+.mini-tree {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.reports-to a {
+.mini-tree-row {
+  display: flex;
+  align-items: center;
+}
+
+.mini-tree-reports {
+  flex-wrap: wrap;
+  gap: 10px 22px;
+}
+
+.mini-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+}
+
+.mini-person a {
   color: var(--accent);
   font-weight: 500;
 }
 
-.reports-to a:hover {
+.mini-person a:hover {
   text-decoration: underline;
+}
+
+.mini-person-self {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.mini-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 .detail-grid {
