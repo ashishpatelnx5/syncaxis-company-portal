@@ -1,14 +1,25 @@
 import { Link } from 'react-router-dom'
 import { avatarColor, initials } from '../utils/org'
 
+// Icon stacked above the name (both centered) rather than side by side — the
+// connector lines split each <li> at its own horizontal center, which only
+// lines up with the icon when the icon is centered above the row instead of
+// sitting to the left of variable-width name text.
 function MiniPerson({ person, isSelf }) {
-  return (
-    <span className={`mini-person ${isSelf ? 'mini-person-self' : ''}`}>
+  const content = (
+    <>
       <span className="mini-avatar" style={{ background: avatarColor(person.name) }}>
         {initials(person.name)}
       </span>
-      {isSelf ? person.name : <Link to={`/employee/${person.id}`}>{person.name}</Link>}
-    </span>
+      <span className="mini-name">{person.name}</span>
+    </>
+  )
+  return isSelf ? (
+    <span className="mini-person mini-person-self">{content}</span>
+  ) : (
+    <Link to={`/employee/${person.id}`} className="mini-person">
+      {content}
+    </Link>
   )
 }
 

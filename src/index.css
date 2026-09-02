@@ -515,7 +515,7 @@ button, input, select {
   padding: 18px 10px 0 10px;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .mini-org-tree > li {
@@ -560,22 +560,28 @@ button, input, select {
 }
 
 .mini-person {
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  font-size: 13.5px;
+  gap: 4px;
+  text-decoration: none;
+  color: inherit;
+  max-width: 110px;
 }
 
-.mini-person a {
-  color: var(--accent);
+.mini-name {
+  font-size: 11.5px;
   font-weight: 500;
+  color: var(--accent);
+  text-align: center;
+  line-height: 1.25;
 }
 
-.mini-person a:hover {
+a.mini-person:hover .mini-name {
   text-decoration: underline;
 }
 
-.mini-person-self {
+.mini-person-self .mini-name {
   font-weight: 700;
   color: var(--text);
 }
