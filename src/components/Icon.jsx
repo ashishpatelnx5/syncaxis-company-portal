@@ -1,0 +1,41 @@
+const paths = {
+  home: 'M3 11.5 12 4l9 7.5M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9',
+  users: 'M8 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm8 0a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM2 20c.6-3.3 3-5.3 6-5.3s5.4 2 6 5.3M14 14.9c2.7.2 4.8 2.2 5.3 5.1',
+  sitemap:
+    'M12 3v5M6 15v3M18 15v3M4 15h4M16 15h4M6 21h0M18 21h0M9 8h6a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-1M9 8H8a2 2 0 0 0-2 2v0a2 2 0 0 0 2 2h1M12 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM6 15a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm12 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z',
+  grid: 'M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z',
+  mail: 'm3 6 9 6 9-6M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z',
+  erp: 'M4 20V10l8-6 8 6v10M4 20h16M9 20v-6h6v6',
+  hr: 'M8 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm8 1a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 20c.6-3.3 3-5.3 6-5.3s5.4 2 6 5.3M15 14.5c2.6.3 4.5 2.3 5 5.5',
+  inquiry:
+    'M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Zm4 5h8M8 13h5',
+  search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm9 2-4.35-4.35',
+  external: 'M14 5h5v5M9 15 19 5M18 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
+  menu: 'M4 6h16M4 12h16M4 18h16',
+  close: 'M6 6l12 12M18 6 6 18',
+  phone:
+    'M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.24 9 9 0 0 0 2.8.45 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1 .17 1.94.45 2.8a1 1 0 0 1-.24 1.02L6.6 10.8Z',
+  building: 'M4 21V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v17M17 21V10h3a1 1 0 0 1 1 1v10M4 21h16M8 7h1M8 11h1M8 15h1M12 7h1M12 11h1M12 15h1',
+  chevron: 'm9 6 6 6-6 6',
+}
+
+export default function Icon({ name, size = 20, className = '' }) {
+  const d = paths[name]
+  if (!d) return null
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`icon ${className}`}
+      aria-hidden="true"
+    >
+      <path d={d} />
+    </svg>
+  )
+}
