@@ -498,17 +498,28 @@ button, input, select {
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
-  gap: 10px;
 }
 
 .mini-tree-row {
+  position: relative;
   display: flex;
   align-items: center;
+  padding: 5px 0;
 }
 
-.mini-tree-reports {
-  flex-wrap: wrap;
-  gap: 10px 22px;
+.mini-connector-v {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  background: var(--org-line);
+}
+
+.mini-connector-h {
+  position: absolute;
+  top: 50%;
+  height: 2px;
+  background: var(--org-line);
+  transform: translateY(-1px);
 }
 
 .mini-person {
