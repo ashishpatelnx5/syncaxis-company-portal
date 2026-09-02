@@ -1,14 +1,25 @@
-export function buildTree(employees) {
+function nodesById(employees) {
   const byId = new Map(employees.map((e) => [e.id, { ...e, children: [] }]))
-  const roots = []
   for (const emp of byId.values()) {
     if (emp.managerId != null && byId.has(emp.managerId)) {
       byId.get(emp.managerId).children.push(emp)
-    } else {
-      roots.push(emp)
     }
   }
+  return byId
+}
+
+export function buildTree(employees) {
+  const byId = nodesById(employees)
+  const roots = []
+  for (const emp of employees) {
+    if (emp.managerId == null || !byId.has(emp.managerId)) roots.push(byId.get(emp.id))
+  }
   return roots
+}
+
+// Same tree, rooted at one person — their card plus everyone under them.
+export function getWithReports(employees, id) {
+  return nodesById(employees).get(id) ?? null
 }
 
 export function managerName(employees, managerId) {

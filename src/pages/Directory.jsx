@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Icon from '../components/Icon'
 import { employees } from '../data/employees'
 import { initials, managerName } from '../utils/org'
 
 export default function Directory() {
+  const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [department, setDepartment] = useState('All')
 
@@ -60,7 +62,14 @@ export default function Directory() {
 
       <div className="employee-grid">
         {filtered.map((emp) => (
-          <div className="employee-card" key={emp.id}>
+          <div
+            className="employee-card employee-card-clickable"
+            key={emp.id}
+            role="link"
+            tabIndex={0}
+            onClick={() => navigate(`/employee/${emp.id}`)}
+            onKeyDown={(e) => e.key === 'Enter' && navigate(`/employee/${emp.id}`)}
+          >
             <div className="employee-avatar">{initials(emp.name)}</div>
             <div className="employee-info">
               <div className="employee-name">
@@ -72,12 +81,12 @@ export default function Directory() {
               {(emp.email || emp.phone || emp.managerId != null) && (
                 <div className="employee-meta">
                   {emp.email && (
-                    <a href={`mailto:${emp.email}`}>
+                    <a href={`mailto:${emp.email}`} onClick={(e) => e.stopPropagation()}>
                       <Icon name="mail" size={14} /> {emp.email}
                     </a>
                   )}
                   {emp.phone && (
-                    <a href={`tel:${emp.phone}`}>
+                    <a href={`tel:${emp.phone}`} onClick={(e) => e.stopPropagation()}>
                       <Icon name="phone" size={14} /> {emp.phone}
                     </a>
                   )}

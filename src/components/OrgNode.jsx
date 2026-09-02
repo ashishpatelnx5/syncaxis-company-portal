@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import Icon from './Icon'
 import { avatarColor, initials } from '../utils/org'
 
@@ -9,13 +10,15 @@ export default function OrgNode({ person }) {
   return (
     <li>
       <div className="org-node">
-        <div className="org-avatar" style={{ background: avatarColor(person.name) }}>
-          {initials(person.name)}
-        </div>
-        <div className="org-card">
-          <div className="org-card-name">{person.name}</div>
-          {person.title && <div className="org-card-title">{person.title}</div>}
-        </div>
+        <Link to={`/employee/${person.id}`} className="org-node-link">
+          <div className="org-avatar" style={{ background: avatarColor(person.name) }}>
+            {initials(person.name)}
+          </div>
+          <div className="org-card">
+            <div className="org-card-name">{person.name}</div>
+            {person.title && <div className="org-card-title">{person.title}</div>}
+          </div>
+        </Link>
         {hasChildren && (
           <button
             type="button"
