@@ -571,13 +571,12 @@ button, input, select {
 }
 
 .org-tree ul {
-  padding-top: 32px;
   position: relative;
 }
 
 .org-tree li {
   position: relative;
-  padding: 0 16px;
+  padding: 32px 16px 0 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -588,38 +587,44 @@ button, input, select {
   flex-direction: row;
 }
 
-.org-tree li li {
+.org-tree > li {
   padding-top: 0;
 }
 
-/* connector: vertical line from the horizontal bus down to each child's avatar */
-.org-tree ul li::before {
-  content: '';
-  position: absolute;
-  top: -32px;
-  left: 50%;
-  width: 2px;
-  height: 32px;
-  background: var(--org-line);
-}
-
-/* connector: horizontal line joining siblings */
-.org-tree ul::before {
+/* Each li draws its own connector out of two halves, sized to its own box
+   rather than a fixed pixel guess — so the line never overshoots past the
+   first/last child regardless of card width. The left half also carries
+   this child's vertical drop stem (border-right sits exactly at its center). */
+.org-tree li::before,
+.org-tree li::after {
   content: '';
   position: absolute;
   top: 0;
-  left: calc(16px + 1px);
-  right: calc(16px + 1px);
-  height: 2px;
-  background: var(--org-line);
+  width: 50%;
+  height: 32px;
 }
 
-.org-tree ul li:only-child::before,
-.org-tree > li::before {
-  display: none;
+.org-tree li::before {
+  right: 50%;
+  border-top: 2px solid var(--org-line);
+  border-right: 2px solid var(--org-line);
 }
 
-.org-tree ul:has(> li:only-child)::before {
+.org-tree li::after {
+  left: 50%;
+  border-top: 2px solid var(--org-line);
+}
+
+.org-tree li:first-child::before {
+  border-top: 0 none;
+}
+
+.org-tree li:last-child::after {
+  border-top: 0 none;
+}
+
+.org-tree > li::before,
+.org-tree > li::after {
   display: none;
 }
 
