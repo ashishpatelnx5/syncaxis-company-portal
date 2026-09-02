@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import Icon from './Icon'
-import { initials } from '../utils/org'
+import { avatarColor, initials } from '../utils/org'
 
 export default function OrgNode({ person }) {
   const [collapsed, setCollapsed] = useState(false)
@@ -8,11 +8,13 @@ export default function OrgNode({ person }) {
 
   return (
     <li>
-      <div className="org-card">
-        <div className="employee-avatar small">{initials(person.name)}</div>
-        <div className="org-card-body">
-          <div className="employee-name">{person.name}</div>
-          {person.title && <div className="employee-title">{person.title}</div>}
+      <div className="org-node">
+        <div className="org-avatar" style={{ background: avatarColor(person.name) }}>
+          {initials(person.name)}
+        </div>
+        <div className="org-card">
+          {person.title && <div className="org-card-title">{person.title}</div>}
+          <div className="org-card-name">{person.name}</div>
         </div>
         {hasChildren && (
           <button
@@ -21,7 +23,7 @@ export default function OrgNode({ person }) {
             onClick={() => setCollapsed((v) => !v)}
             aria-label={collapsed ? 'Expand team' : 'Collapse team'}
           >
-            <Icon name="chevron" size={14} className={collapsed ? '' : 'rotated'} />
+            <Icon name="chevron" size={12} className={collapsed ? '' : 'rotated'} />
             {person.children.length}
           </button>
         )}
