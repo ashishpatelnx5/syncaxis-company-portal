@@ -11,6 +11,22 @@ npm run preview   # serve that build locally, for a final check before deploying
 thing every host needs to be configured for is described below under
 [SPA routing](#spa-routing).
 
+### Quick option: `npm start`
+
+For standing the app up on a server without setting up Nginx/IIS/etc.
+(e.g. a Windows Server box), `npm start` builds fresh and serves the
+result on `0.0.0.0` (reachable from other machines on the network, not
+just localhost) on the port set by `VITE_PORT`:
+
+```bash
+npm start
+```
+
+This uses `vite preview`, which is fine for internal/small-scale use
+but isn't a hardened production server (no gzip, no caching headers,
+no TLS) — for anything internet-facing or higher-traffic, prefer one
+of the real web servers below.
+
 ## Environment variables
 
 See `.env.example` for the full list. All variables are prefixed
