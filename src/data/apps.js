@@ -1,32 +1,33 @@
 // Company applications shown on the Home and Applications pages.
-// Add, remove, or edit entries here to change the links shown in the portal.
+// URLs come from .env (VITE_*) so they can differ per environment without a
+// code change; the values here are the fallback used if a variable is unset.
 export const apps = [
   {
     id: 'webmail',
     name: 'Webmail',
     description: 'Send and receive company email',
-    url: 'https://webmail.syncaxis.com/',
+    url: import.meta.env.VITE_WEBMAIL_URL || 'https://webmail.syncaxis.com/',
     icon: 'mail',
   },
   {
     id: 'erp',
     name: 'ERP',
     description: 'Enterprise resource planning system',
-    url: 'http://erp.syncaxis.com/login',
+    url: import.meta.env.VITE_ERP_URL || 'http://erp.syncaxis.com/login',
     icon: 'erp',
   },
   {
     id: 'greythr',
     name: 'GreytHR',
     description: 'Leave, attendance, and payroll management',
-    url: 'https://syncaxis.greythr.com/',
+    url: import.meta.env.VITE_GREYTHR_URL || 'https://syncaxis.greythr.com/',
     icon: 'hr',
   },
   {
     id: 'inquiry',
     name: 'Inquiry Portal',
     description: 'Submit and track inquiries',
-    url: 'https://inquiry.syncaxis.com/',
+    url: import.meta.env.VITE_INQUIRY_URL || 'https://inquiry.syncaxis.com/',
     icon: 'inquiry',
   },
 ]
