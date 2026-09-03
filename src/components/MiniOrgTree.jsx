@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { avatarColor, initials } from '../utils/org'
+import Avatar from './Avatar'
 
 // Icon stacked above the name (both centered) rather than side by side — the
 // connector lines split each <li> at its own horizontal center, which only
@@ -8,9 +8,7 @@ import { avatarColor, initials } from '../utils/org'
 function MiniPerson({ person, isSelf }) {
   const content = (
     <>
-      <span className="mini-avatar" style={{ background: avatarColor(person.name) }}>
-        {initials(person.name)}
-      </span>
+      <Avatar name={person.name} photo={person.photo} className="mini-avatar" />
       <span className="mini-name">{person.name}</span>
     </>
   )

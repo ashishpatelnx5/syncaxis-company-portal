@@ -1,9 +1,10 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
+import Avatar from '../components/Avatar'
 import Icon from '../components/Icon'
 import MiniOrgTree from '../components/MiniOrgTree'
 import { useDepartments } from '../context/useDepartments'
 import { useEmployees } from '../context/useEmployees'
-import { avatarColor, getAncestorChain, getDirectReports, initials } from '../utils/org'
+import { getAncestorChain, getDirectReports } from '../utils/org'
 
 export default function EmployeeDetail() {
   const { id } = useParams()
@@ -35,9 +36,7 @@ export default function EmployeeDetail() {
       </div>
 
       <div className="detail-header">
-        <div className="detail-avatar" style={{ background: avatarColor(employee.name) }}>
-          {initials(employee.name)}
-        </div>
+        <Avatar name={employee.name} photo={employee.photo} className="detail-avatar" />
         <div>
           <h1>{employee.name}</h1>
           <p className="page-subtitle">

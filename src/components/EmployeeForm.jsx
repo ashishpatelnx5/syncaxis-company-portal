@@ -1,11 +1,14 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import Avatar from './Avatar'
 import Icon from './Icon'
 import { useDepartments } from '../context/useDepartments'
 import { useEmployees } from '../context/useEmployees'
+import { fileToResizedDataUrl } from '../utils/image'
 import { getAncestorChain, getDescendantIds, getDirectReports } from '../utils/org'
 
 const emptyForm = {
   name: '',
+  photo: '',
   employeeId: '',
   title: '',
   departmentIds: [],
@@ -25,6 +28,7 @@ export default function EmployeeForm({ employee, onClose }) {
       ? emptyForm
       : {
           name: employee.name,
+          photo: employee.photo || '',
           employeeId: employee.employeeId || '',
           title: employee.title || '',
           departmentIds: employee.departmentIds || [],
@@ -41,6 +45,8 @@ export default function EmployeeForm({ employee, onClose }) {
   const [reportIds, setReportIds] = useState(() =>
     isNew ? [] : getDirectReports(employees, employee.id).map((e) => e.id),
   )
+  const [photoError, setPhotoError] = useState('')
+  const fileInputRef = useRef(null)
 
   // Exclude self and descendants from "reports to" (can't report to your own
   // report — that's a cycle), and self and ancestors from "direct reports"
@@ -80,6 +86,23 @@ export default function EmployeeForm({ employee, onClose }) {
     setReportIds((prev) => (prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]))
   }
 
+  async function handlePhotoChange(e) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // clear so choosing the same file again still fires onChange
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setPhotoError('Please choose an image file.')
+      return
+    }
+    try {
+      const dataUrl = await fileToResizedDataUrl(file)
+      setPhotoError('')
+      set('photo', dataUrl)
+    } catch {
+      setPhotoError('Could not read that image — try a different file.')
+    }
+  }
+
   function handleSubmit(e) {
     e.preventDefault()
     if (!form.name.trim()) return
@@ -111,6 +134,25 @@ export default function EmployeeForm({ employee, onClose }) {
             <span>Name *</span>
             <input value={form.name} onChange={(e) => set('name', e.target.value)} required autoFocus />
           </label>
+
+          <div className="form-field">
+            <span>Photo</span>
+            <div className="avatar-upload">
+              <Avatar name={form.name || '?'} photo={form.photo} className="detail-avatar avatar-upload-preview" />
+              <div className="avatar-upload-actions">
+                <button type="button" className="btn-secondary" onClick={() => fileInputRef.current?.click()}>
+                  {form.photo ? 'Change photo' : 'Upload photo'}
+                </button>
+                {form.photo && (
+                  <button type="button" className="btn-secondary" onClick={() => set('photo', '')}>
+                    Remove
+                  </button>
+                )}
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoChange} hidden />
+              </div>
+              {photoError && <p className="form-error">{photoError}</p>}
+            </div>
+          </div>
 
           <div className="form-row">
             <label className="form-field">

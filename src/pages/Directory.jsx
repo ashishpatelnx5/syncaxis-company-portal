@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import Avatar from '../components/Avatar'
 import Icon from '../components/Icon'
 import { useDepartments } from '../context/useDepartments'
 import { useEmployees } from '../context/useEmployees'
-import { initials, managerName } from '../utils/org'
+import { managerName } from '../utils/org'
 
 export default function Directory() {
   const { employees } = useEmployees()
@@ -90,7 +91,7 @@ export default function Directory() {
               onClick={() => navigate(`/employee/${emp.id}`)}
               onKeyDown={(e) => e.key === 'Enter' && navigate(`/employee/${emp.id}`)}
             >
-              <div className="employee-avatar">{initials(emp.name)}</div>
+              <Avatar name={emp.name} photo={emp.photo} className="employee-avatar" />
               <div className="employee-info">
                 <div className="employee-name">
                   {emp.name}

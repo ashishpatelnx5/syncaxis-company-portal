@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import Avatar from '../components/Avatar'
 import EmployeeForm from '../components/EmployeeForm'
 import Icon from '../components/Icon'
 import { useDepartments } from '../context/useDepartments'
 import { useEmployees } from '../context/useEmployees'
 import { downloadEmployeesModule } from '../utils/exportEmployees'
-import { avatarColor, getDirectReports, initials, managerName } from '../utils/org'
+import { getDirectReports, managerName } from '../utils/org'
 
 export default function Admin() {
   const { employees, deleteEmployee, isModified, resetToDefaults } = useEmployees()
@@ -116,9 +117,7 @@ export default function Admin() {
               <tr key={emp.id}>
                 <td>
                   <div className="admin-name-cell">
-                    <span className="employee-avatar small" style={{ background: avatarColor(emp.name) }}>
-                      {initials(emp.name)}
-                    </span>
+                    <Avatar name={emp.name} photo={emp.photo} className="employee-avatar small" />
                     {emp.name}
                   </div>
                 </td>
