@@ -1,7 +1,7 @@
 // Downscales and re-encodes an uploaded image client-side before it goes
 // into localStorage as a data URI — an unresized phone photo would eat a
 // large chunk of the ~5-10MB storage quota by itself.
-export function fileToResizedDataUrl(file, maxDim = 240, quality = 0.85) {
+export function fileToResizedDataUrl(file, maxDim = 480, quality = 0.85) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onerror = () => reject(reader.error)

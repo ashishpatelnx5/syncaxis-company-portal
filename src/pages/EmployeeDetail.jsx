@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import Avatar from '../components/Avatar'
 import Icon from '../components/Icon'
 import MiniOrgTree from '../components/MiniOrgTree'
+import PhotoLightbox from '../components/PhotoLightbox'
 import { useDepartments } from '../context/useDepartments'
 import { useEmployees } from '../context/useEmployees'
 import { getAncestorChain, getDirectReports } from '../utils/org'
@@ -10,6 +12,7 @@ export default function EmployeeDetail() {
   const { id } = useParams()
   const { employees } = useEmployees()
   const { departments } = useDepartments()
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   const employee = employees.find((e) => String(e.id) === id)
 
   if (!employee) return <Navigate to="/directory" replace />
@@ -36,7 +39,18 @@ export default function EmployeeDetail() {
       </div>
 
       <div className="detail-header">
-        <Avatar name={employee.name} photo={employee.photo} className="detail-avatar" />
+        {employee.photo ? (
+          <button
+            type="button"
+            className="avatar-button"
+            onClick={() => setLightboxOpen(true)}
+            aria-label={`View ${employee.name}'s full photo`}
+          >
+            <Avatar name={employee.name} photo={employee.photo} className="detail-avatar" />
+          </button>
+        ) : (
+          <Avatar name={employee.name} photo={employee.photo} className="detail-avatar" />
+        )}
         <div>
           <h1>{employee.name}</h1>
           <p className="page-subtitle">
@@ -109,6 +123,10 @@ export default function EmployeeDetail() {
         <h2>Where {employee.name.split(' ')[0]} fits</h2>
         <MiniOrgTree chain={chain} reports={reports} />
       </section>
+
+      {lightboxOpen && (
+        <PhotoLightbox src={employee.photo} alt={employee.name} onClose={() => setLightboxOpen(false)} />
+      )}
     </div>
   )
 }

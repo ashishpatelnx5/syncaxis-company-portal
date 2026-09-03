@@ -1003,6 +1003,47 @@ a.mini-person:hover .mini-name {
   color: var(--text);
 }
 
+.avatar-button {
+  border: none;
+  background: none;
+  padding: 0;
+  border-radius: 50%;
+  cursor: zoom-in;
+  transition: opacity 0.12s ease;
+}
+
+.avatar-button:hover {
+  opacity: 0.85;
+}
+
+.lightbox-scrim {
+  align-items: center;
+  background: rgba(8, 9, 12, 0.85);
+}
+
+.lightbox-img {
+  max-width: min(90vw, 560px);
+  max-height: 85vh;
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  object-fit: contain;
+}
+
+.lightbox-close {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  width: 38px;
+  height: 38px;
+}
+
+.lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
 .modal-body {
   padding: 20px;
   overflow-y: auto;
