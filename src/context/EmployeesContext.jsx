@@ -1,51 +1,52 @@
-import { useEffect, useMemo, useState } from 'react'
-import { employees as seedEmployees } from '../data/employees'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { apiFetch } from '../utils/api'
 import { EmployeesContext } from './employeesContext'
 
-const STORAGE_KEY = 'syncaxis-employees'
-
-function loadInitial() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch {
-    // Corrupt/unavailable storage — fall back to the bundled seed data below.
-  }
-  return seedEmployees
-}
-
 export function EmployeesProvider({ children }) {
-  const [employees, setEmployees] = useState(loadInitial)
+  const [employees, setEmployees] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const refresh = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      setEmployees(await apiFetch('/api/employees'))
+      setError(null)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(employees))
-    } catch {
-      // Storage full/unavailable — edits still work for the rest of this session.
-    }
-  }, [employees])
+    refresh()
+  }, [refresh])
 
   const api = useMemo(() => {
-    function addEmployee(data) {
-      const nextId = employees.reduce((max, e) => Math.max(max, e.id), 0) + 1
-      setEmployees((prev) => [...prev, { ...data, id: nextId }])
-      return nextId
+    async function addEmployee(data) {
+      const created = await apiFetch('/api/employees', { method: 'POST', body: data })
+      setEmployees((prev) => [...prev, created])
+      return created.id
     }
 
-    function updateEmployee(id, data) {
-      setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, ...data } : e)))
+    async function updateEmployee(id, data) {
+      const updated = await apiFetch(`/api/employees/${id}`, { method: 'PUT', body: data })
+      setEmployees((prev) => prev.map((e) => (e.id === id ? updated : e)))
     }
 
-    function deleteEmployee(id) {
+    async function deleteEmployee(id) {
+      await apiFetch(`/api/employees/${id}`, { method: 'DELETE' })
       setEmployees((prev) =>
         prev.filter((e) => e.id !== id).map((e) => (e.managerId === id ? { ...e, managerId: null } : e)),
       )
     }
 
-    // Reconciles this manager's direct-report set in one pass: anyone newly
+    // Reconciles this manager's direct-report set in one call: anyone newly
     // checked gets managerId set to them, anyone unchecked who currently
     // reports to them gets managerId cleared. Everyone else is untouched.
-    function setDirectReports(managerId, reportIds) {
+    async function setDirectReports(managerId, reportIds) {
+      await apiFetch(`/api/employees/${managerId}/reports`, { method: 'PUT', body: { reportIds } })
       const wanted = new Set(reportIds)
       setEmployees((prev) =>
         prev.map((e) => {
@@ -59,33 +60,17 @@ export function EmployeesProvider({ children }) {
       )
     }
 
-    // Strips a deleted department out of everyone's departmentIds instead of
-    // leaving a dangling reference behind.
-    function removeDepartmentFromAll(departmentId) {
-      setEmployees((prev) =>
-        prev.map((e) =>
-          e.departmentIds?.includes(departmentId)
-            ? { ...e, departmentIds: e.departmentIds.filter((id) => id !== departmentId) }
-            : e,
-        ),
-      )
-    }
-
-    function resetToDefaults() {
-      setEmployees(seedEmployees)
-    }
-
     return {
       employees,
-      isModified: JSON.stringify(employees) !== JSON.stringify(seedEmployees),
+      isLoading,
+      error,
+      refresh,
       addEmployee,
       updateEmployee,
       deleteEmployee,
       setDirectReports,
-      removeDepartmentFromAll,
-      resetToDefaults,
     }
-  }, [employees])
+  }, [employees, isLoading, error, refresh])
 
   return <EmployeesContext.Provider value={api}>{children}</EmployeesContext.Provider>
 }

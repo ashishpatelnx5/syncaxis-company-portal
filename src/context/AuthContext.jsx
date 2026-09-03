@@ -1,54 +1,39 @@
 import { useEffect, useMemo, useState } from 'react'
+import { apiFetch, getToken, setToken } from '../utils/api'
 import { AuthContext } from './authContext'
 
-// NOTE: this is a client-side-only login gate — there is no backend to
-// verify against. It deters casual browsing but is not real security: these
-// values (and this check) ship in plain text inside the public JS bundle,
-// and the "logged in" state can be set directly via devtools/localStorage,
-// bypassing the form entirely. Don't rely on this to protect sensitive data.
-// The real credentials live only in the gitignored .env — never hardcode
-// them here as a fallback, or they'd end up committed in plain text.
-const VALID_USERNAME = import.meta.env.VITE_AUTH_USERNAME || 'changeme'
-const VALID_PASSWORD = import.meta.env.VITE_AUTH_PASSWORD || 'changeme'
-
-const STORAGE_KEY = 'syncaxis-auth'
-
-function loadInitial() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch {
-    // Corrupt/unavailable storage — treat as logged out.
-  }
-  return null
-}
-
 export function AuthProvider({ children }) {
-  const [session, setSession] = useState(loadInitial)
+  const [user, setUser] = useState(null)
+  // Starts true whenever a token is already stored, so RequireAuth doesn't
+  // briefly bounce a still-valid session to /login while /auth/me resolves.
+  const [isLoading, setIsLoading] = useState(() => Boolean(getToken()))
 
   useEffect(() => {
-    try {
-      if (session) localStorage.setItem(STORAGE_KEY, JSON.stringify(session))
-      else localStorage.removeItem(STORAGE_KEY)
-    } catch {
-      // Storage unavailable — session still works for the rest of this tab.
-    }
-  }, [session])
+    const token = getToken()
+    if (!token) return
+
+    apiFetch('/api/auth/me')
+      .then((data) => setUser(data.user))
+      .catch(() => setToken(null))
+      .finally(() => setIsLoading(false))
+  }, [])
 
   const api = useMemo(
     () => ({
-      user: session,
-      isAuthenticated: session != null,
-      login(username, password) {
-        const ok = username.trim().toLowerCase() === VALID_USERNAME.toLowerCase() && password === VALID_PASSWORD
-        if (ok) setSession({ username: VALID_USERNAME })
-        return ok
+      user,
+      isAuthenticated: user != null,
+      isLoading,
+      async login(username, password) {
+        const data = await apiFetch('/api/auth/login', { method: 'POST', body: { username, password }, auth: false })
+        setToken(data.token)
+        setUser(data.user)
       },
       logout() {
-        setSession(null)
+        setToken(null)
+        setUser(null)
       },
     }),
-    [session],
+    [user, isLoading],
   )
 
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>

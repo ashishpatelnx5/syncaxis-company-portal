@@ -46,6 +46,8 @@ export default function EmployeeForm({ employee, onClose }) {
     isNew ? [] : getDirectReports(employees, employee.id).map((e) => e.id),
   )
   const [photoError, setPhotoError] = useState('')
+  const [submitError, setSubmitError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const fileInputRef = useRef(null)
 
   // Exclude self and descendants from "reports to" (can't report to your own
@@ -103,20 +105,28 @@ export default function EmployeeForm({ employee, onClose }) {
     }
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     if (!form.name.trim()) return
 
     const payload = { ...form, managerId: form.managerId === '' ? null : Number(form.managerId) }
 
-    if (isNew) {
-      const newId = addEmployee(payload)
-      if (reportIds.length > 0) setDirectReports(newId, reportIds)
-    } else {
-      updateEmployee(employee.id, payload)
-      setDirectReports(employee.id, reportIds)
+    setSubmitting(true)
+    setSubmitError('')
+    try {
+      if (isNew) {
+        const newId = await addEmployee(payload)
+        if (reportIds.length > 0) await setDirectReports(newId, reportIds)
+      } else {
+        await updateEmployee(employee.id, payload)
+        await setDirectReports(employee.id, reportIds)
+      }
+      onClose()
+    } catch (err) {
+      setSubmitError(err.message || 'Could not save this employee.')
+    } finally {
+      setSubmitting(false)
     }
-    onClose()
   }
 
   return (
@@ -241,11 +251,12 @@ export default function EmployeeForm({ employee, onClose }) {
         </div>
 
         <div className="modal-footer">
+          {submitError && <p className="form-error">{submitError}</p>}
           <button type="button" className="btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn-primary">
-            {isNew ? 'Add employee' : 'Save changes'}
+          <button type="submit" className="btn-primary" disabled={submitting}>
+            {submitting ? 'Saving…' : isNew ? 'Add employee' : 'Save changes'}
           </button>
         </div>
       </form>

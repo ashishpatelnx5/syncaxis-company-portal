@@ -1,58 +1,49 @@
-import { useEffect, useMemo, useState } from 'react'
-import { departments as seedDepartments } from '../data/departments'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { apiFetch } from '../utils/api'
 import { DepartmentsContext } from './departmentsContext'
 
-const STORAGE_KEY = 'syncaxis-departments'
-
-function loadInitial() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch {
-    // Corrupt/unavailable storage — fall back to the bundled seed data below.
-  }
-  return seedDepartments
-}
-
 export function DepartmentsProvider({ children }) {
-  const [departments, setDepartments] = useState(loadInitial)
+  const [departments, setDepartments] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const refresh = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      setDepartments(await apiFetch('/api/departments'))
+      setError(null)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(departments))
-    } catch {
-      // Storage full/unavailable — edits still work for the rest of this session.
-    }
-  }, [departments])
+    refresh()
+  }, [refresh])
 
   const api = useMemo(() => {
-    function addDepartment(data) {
-      const nextId = departments.reduce((max, d) => Math.max(max, d.id), 0) + 1
-      setDepartments((prev) => [...prev, { ...data, id: nextId }])
-      return nextId
+    async function addDepartment(data) {
+      const created = await apiFetch('/api/departments', { method: 'POST', body: data })
+      setDepartments((prev) => [...prev, created])
+      return created.id
     }
 
-    function updateDepartment(id, data) {
-      setDepartments((prev) => prev.map((d) => (d.id === id ? { ...d, ...data } : d)))
+    async function updateDepartment(id, data) {
+      const updated = await apiFetch(`/api/departments/${id}`, { method: 'PUT', body: data })
+      setDepartments((prev) => prev.map((d) => (d.id === id ? updated : d)))
     }
 
-    function deleteDepartment(id) {
+    // The server cascades this into every employee's department assignments
+    // — the caller is responsible for refreshing employees afterward.
+    async function deleteDepartment(id) {
+      await apiFetch(`/api/departments/${id}`, { method: 'DELETE' })
       setDepartments((prev) => prev.filter((d) => d.id !== id))
     }
 
-    function resetToDefaults() {
-      setDepartments(seedDepartments)
-    }
-
-    return {
-      departments,
-      isModified: JSON.stringify(departments) !== JSON.stringify(seedDepartments),
-      addDepartment,
-      updateDepartment,
-      deleteDepartment,
-      resetToDefaults,
-    }
-  }, [departments])
+    return { departments, isLoading, error, refresh, addDepartment, updateDepartment, deleteDepartment }
+  }, [departments, isLoading, error, refresh])
 
   return <DepartmentsContext.Provider value={api}>{children}</DepartmentsContext.Provider>
 }

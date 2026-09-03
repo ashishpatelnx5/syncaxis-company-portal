@@ -6,16 +6,26 @@ export default function DepartmentForm({ department, onClose }) {
   const { addDepartment, updateDepartment } = useDepartments()
   const isNew = department == null
   const [name, setName] = useState(department?.name ?? '')
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     if (!name.trim()) return
-    if (isNew) {
-      addDepartment({ name: name.trim() })
-    } else {
-      updateDepartment(department.id, { name: name.trim() })
+    setSubmitting(true)
+    setError('')
+    try {
+      if (isNew) {
+        await addDepartment({ name: name.trim() })
+      } else {
+        await updateDepartment(department.id, { name: name.trim() })
+      }
+      onClose()
+    } catch (err) {
+      setError(err.message || 'Could not save this department.')
+    } finally {
+      setSubmitting(false)
     }
-    onClose()
   }
 
   return (
@@ -36,11 +46,12 @@ export default function DepartmentForm({ department, onClose }) {
         </div>
 
         <div className="modal-footer">
+          {error && <p className="form-error">{error}</p>}
           <button type="button" className="btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn-primary">
-            {isNew ? 'Add department' : 'Save changes'}
+          <button type="submit" className="btn-primary" disabled={submitting}>
+            {submitting ? 'Saving…' : isNew ? 'Add department' : 'Save changes'}
           </button>
         </div>
       </form>

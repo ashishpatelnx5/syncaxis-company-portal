@@ -6,8 +6,8 @@ import { useEmployees } from '../context/useEmployees'
 import { downloadDepartmentsModule } from '../utils/exportDepartments'
 
 export default function Departments() {
-  const { departments, deleteDepartment, isModified, resetToDefaults } = useDepartments()
-  const { employees, removeDepartmentFromAll } = useEmployees()
+  const { departments, deleteDepartment } = useDepartments()
+  const { employees, refresh: refreshEmployees } = useEmployees()
   // undefined = closed, null = add-new form, number = editing that id
   const [editingId, setEditingId] = useState(undefined)
 
@@ -17,21 +17,17 @@ export default function Departments() {
     return employees.filter((e) => e.departmentIds?.includes(deptId)).length
   }
 
-  function handleDelete(dept) {
+  async function handleDelete(dept) {
     const count = memberCount(dept.id)
     const warning =
       count > 0
         ? `${count} ${count === 1 ? 'person is' : 'people are'} assigned to "${dept.name}". They'll become unassigned. Delete this department anyway?`
-        : `Delete "${dept.name}"? This can't be undone unless you still have an earlier export.`
+        : `Delete "${dept.name}"? This can't be undone.`
     if (window.confirm(warning)) {
-      removeDepartmentFromAll(dept.id)
-      deleteDepartment(dept.id)
-    }
-  }
-
-  function handleReset() {
-    if (window.confirm('Discard all local department changes and revert to the last exported departments.js? This cannot be undone.')) {
-      resetToDefaults()
+      await deleteDepartment(dept.id)
+      // The server strips this department out of every employee's
+      // assignment set as part of the delete — refetch so the UI matches.
+      refreshEmployees()
     }
   }
 
@@ -46,11 +42,6 @@ export default function Departments() {
             <p className="page-subtitle">Create, rename, and remove the departments employees can be assigned to.</p>
           </div>
           <div className="admin-header-actions">
-            {isModified && (
-              <button type="button" className="btn-secondary" onClick={handleReset}>
-                Reset to defaults
-              </button>
-            )}
             <button type="button" className="btn-secondary" onClick={() => downloadDepartmentsModule(departments)}>
               Export departments.js
             </button>
@@ -60,13 +51,6 @@ export default function Departments() {
           </div>
         </div>
       </header>
-
-      {isModified && (
-        <p className="notice">
-          You have local changes saved only in this browser. Click <strong>Export departments.js</strong> and commit
-          the downloaded file so everyone else sees them too.
-        </p>
-      )}
 
       <div className="admin-table-wrap">
         <table className="admin-table">

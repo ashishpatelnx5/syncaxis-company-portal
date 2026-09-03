@@ -12,17 +12,23 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   if (isAuthenticated) {
     return <Navigate to={location.state?.from?.pathname || '/'} replace />
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
-    if (login(username, password)) {
+    setSubmitting(true)
+    setError('')
+    try {
+      await login(username, password)
       navigate(location.state?.from?.pathname || '/', { replace: true })
-    } else {
-      setError('Incorrect username or password.')
+    } catch (err) {
+      setError(err.message || 'Incorrect username or password.')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -59,8 +65,8 @@ export default function Login() {
 
         {error && <p className="form-error">{error}</p>}
 
-        <button type="submit" className="btn-primary login-submit">
-          Sign in
+        <button type="submit" className="btn-primary login-submit" disabled={submitting}>
+          {submitting ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
     </div>

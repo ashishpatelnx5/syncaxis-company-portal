@@ -9,7 +9,7 @@ import { downloadEmployeesModule } from '../utils/exportEmployees'
 import { getDirectReports, managerName } from '../utils/org'
 
 export default function Admin() {
-  const { employees, deleteEmployee, isModified, resetToDefaults } = useEmployees()
+  const { employees, deleteEmployee } = useEmployees()
   const { departments } = useDepartments()
   const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState('')
@@ -41,14 +41,8 @@ export default function Admin() {
         ? `${emp.name} has ${reports.length} direct report${reports.length > 1 ? 's' : ''} (${reports
             .map((r) => r.name)
             .join(', ')}), who will become unassigned. Delete ${emp.name} anyway?`
-        : `Delete ${emp.name}? This can't be undone unless you still have an earlier export.`
+        : `Delete ${emp.name}? This can't be undone.`
     if (window.confirm(warning)) deleteEmployee(emp.id)
-  }
-
-  function handleReset() {
-    if (window.confirm('Discard all local changes and revert to the last exported employees.js? This cannot be undone.')) {
-      resetToDefaults()
-    }
   }
 
   const editingEmployee = typeof editingId === 'number' ? employees.find((e) => e.id === editingId) : null
@@ -69,11 +63,6 @@ export default function Admin() {
             <p className="page-subtitle">Add, edit, and remove employees, and set who reports to whom.</p>
           </div>
           <div className="admin-header-actions">
-            {isModified && (
-              <button type="button" className="btn-secondary" onClick={handleReset}>
-                Reset to defaults
-              </button>
-            )}
             <button type="button" className="btn-secondary" onClick={() => downloadEmployeesModule(employees)}>
               Export employees.js
             </button>
@@ -83,13 +72,6 @@ export default function Admin() {
           </div>
         </div>
       </header>
-
-      {isModified && (
-        <p className="notice">
-          You have local changes saved only in this browser. Click <strong>Export employees.js</strong> and commit
-          the downloaded file so everyone else sees them too.
-        </p>
-      )}
 
       <div className="search-box admin-search">
         <Icon name="search" size={18} />
