@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import Icon from './Icon'
 import logo from '../assets/logo.png'
+import { useAuth } from '../context/useAuth'
 
 const navItems = [
   { to: '/', label: 'Home', icon: 'home', end: true },
@@ -14,6 +15,13 @@ const navItems = [
 
 export default function Layout() {
   const [open, setOpen] = useState(false)
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+
+  function handleLogout() {
+    logout()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <div className="shell">
@@ -44,7 +52,18 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
-        <div className="sidebar-footer">Syncaxis Company Portal</div>
+        <div className="sidebar-footer">
+          <div className="sidebar-user-row">
+            <span className="sidebar-user">
+              <Icon name="user" size={14} />
+              {user?.username}
+            </span>
+            <button type="button" className="icon-btn" onClick={handleLogout} aria-label="Log out">
+              <Icon name="logout" size={15} />
+            </button>
+          </div>
+          <div className="sidebar-tagline">Syncaxis Company Portal</div>
+        </div>
       </aside>
 
       {open && <div className="scrim" onClick={() => setOpen(false)} />}

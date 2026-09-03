@@ -137,10 +137,31 @@ button, input, select {
 
 .sidebar-footer {
   margin-top: auto;
-  padding: 16px 20px;
+  padding: 14px 20px;
   font-size: 12px;
   color: var(--text-muted);
   border-top: 1px solid var(--border);
+}
+
+.sidebar-user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sidebar-tagline {
+  font-size: 11px;
 }
 
 .menu-toggle {
@@ -1152,6 +1173,66 @@ a.mini-person:hover .mini-name {
   align-items: center;
   gap: 7px;
   font-size: 13px;
+}
+
+/* Login */
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: var(--bg);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 340px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: center;
+}
+
+.login-logo {
+  height: 40px;
+  width: auto;
+  align-self: center;
+  border-radius: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .login-logo {
+    background: #fff;
+    padding: 6px 10px;
+  }
+}
+
+:root[data-theme='dark'] .login-logo {
+  background: #fff;
+  padding: 6px 10px;
+}
+
+.login-card h1 {
+  font-size: 20px;
+}
+
+.login-card .page-subtitle {
+  margin-top: -8px;
+}
+
+.login-card .form-field {
+  text-align: left;
+}
+
+.login-submit {
+  justify-content: center;
+  margin-top: 4px;
 }
 
 /* Responsive */
