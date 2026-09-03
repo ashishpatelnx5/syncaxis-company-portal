@@ -8,6 +8,7 @@ const navItems = [
   { to: '/directory', label: 'Directory', icon: 'users' },
   { to: '/hierarchy', label: 'Org Chart', icon: 'sitemap' },
   { to: '/applications', label: 'Applications', icon: 'grid' },
+  { to: '/admin', label: 'Admin', icon: 'settings' },
 ]
 
 export default function Layout() {

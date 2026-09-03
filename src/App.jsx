@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
+import Admin from './pages/Admin'
 import Home from './pages/Home'
 import Applications from './pages/Applications'
 import Directory from './pages/Directory'
@@ -15,6 +16,7 @@ function App() {
         <Route path="employee/:id" element={<EmployeeDetail />} />
         <Route path="hierarchy" element={<Hierarchy />} />
         <Route path="applications" element={<Applications />} />
+        <Route path="admin" element={<Admin />} />
       </Route>
     </Routes>
   )

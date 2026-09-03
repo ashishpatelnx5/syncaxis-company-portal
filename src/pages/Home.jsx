@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom'
 import AppCard from '../components/AppCard'
 import Icon from '../components/Icon'
+import { useEmployees } from '../context/useEmployees'
 import { apps } from '../data/apps'
-import { employees } from '../data/employees'
 
 export default function Home() {
+  const { employees } = useEmployees()
   const departments = new Set(employees.map((e) => e.department).filter(Boolean))
 
   return (

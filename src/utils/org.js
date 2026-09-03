@@ -38,6 +38,13 @@ export function getDirectReports(employees, id) {
   return employees.filter((e) => e.managerId === id)
 }
 
+// Every id reporting to this person, at any depth — used to stop the admin
+// form from letting someone report to their own descendant (a cycle).
+export function getDescendantIds(employees, id) {
+  const direct = employees.filter((e) => e.managerId === id)
+  return direct.flatMap((e) => [e.id, ...getDescendantIds(employees, e.id)])
+}
+
 export function initials(name) {
   return name
     .split(' ')

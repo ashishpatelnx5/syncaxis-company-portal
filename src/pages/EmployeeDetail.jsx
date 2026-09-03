@@ -1,11 +1,12 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
 import Icon from '../components/Icon'
 import MiniOrgTree from '../components/MiniOrgTree'
-import { employees } from '../data/employees'
+import { useEmployees } from '../context/useEmployees'
 import { avatarColor, getAncestorChain, getDirectReports, initials } from '../utils/org'
 
 export default function EmployeeDetail() {
   const { id } = useParams()
+  const { employees } = useEmployees()
   const employee = employees.find((e) => String(e.id) === id)
 
   if (!employee) return <Navigate to="/directory" replace />
@@ -17,10 +18,16 @@ export default function EmployeeDetail() {
 
   return (
     <div className="page">
-      <Link to="/directory" className="back-link">
-        <Icon name="chevron" size={14} className="back-icon" />
-        Back to directory
-      </Link>
+      <div className="detail-toolbar">
+        <Link to="/directory" className="back-link">
+          <Icon name="chevron" size={14} className="back-icon" />
+          Back to directory
+        </Link>
+        <Link to={`/admin?edit=${employee.id}`} className="back-link">
+          <Icon name="edit" size={14} />
+          Edit
+        </Link>
+      </div>
 
       <div className="detail-header">
         <div className="detail-avatar" style={{ background: avatarColor(employee.name) }}>

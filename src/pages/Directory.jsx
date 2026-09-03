@@ -1,17 +1,18 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../components/Icon'
-import { employees } from '../data/employees'
+import { useEmployees } from '../context/useEmployees'
 import { initials, managerName } from '../utils/org'
 
 export default function Directory() {
+  const { employees } = useEmployees()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [department, setDepartment] = useState('All')
 
   const departments = useMemo(
     () => ['All', ...new Set(employees.map((e) => e.department).filter(Boolean))].sort((a, b) => (a === 'All' ? -1 : a.localeCompare(b))),
-    [],
+    [employees],
   )
 
   const filtered = useMemo(() => {
@@ -27,7 +28,7 @@ export default function Directory() {
           e.department.toLowerCase().includes(q),
       )
       .sort((a, b) => a.name.localeCompare(b.name))
-  }, [query, department])
+  }, [employees, query, department])
 
   return (
     <div className="page">

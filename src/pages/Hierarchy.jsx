@@ -1,8 +1,9 @@
 import OrgNode from '../components/OrgNode'
-import { employees } from '../data/employees'
+import { useEmployees } from '../context/useEmployees'
 import { buildTree } from '../utils/org'
 
 export default function Hierarchy() {
+  const { employees } = useEmployees()
   const hasReportingLines = employees.some((e) => e.managerId != null)
   const unplaced = employees.filter((e) => e.managerId == null && !e.title)
   const chartEmployees = employees.filter((e) => !unplaced.includes(e))
