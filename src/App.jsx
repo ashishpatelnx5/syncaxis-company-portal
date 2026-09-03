@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
 import RequireAuth from './components/RequireAuth'
 import Admin from './pages/Admin'
@@ -21,8 +21,11 @@ function App() {
           <Route path="employee/:id" element={<EmployeeDetail />} />
           <Route path="hierarchy" element={<Hierarchy />} />
           <Route path="applications" element={<Applications />} />
-          <Route path="admin" element={<Admin />} />
-          <Route path="departments" element={<Departments />} />
+          <Route path="admin">
+            <Route index element={<Navigate to="employees" replace />} />
+            <Route path="employees" element={<Admin />} />
+            <Route path="departments" element={<Departments />} />
+          </Route>
         </Route>
       </Route>
     </Routes>

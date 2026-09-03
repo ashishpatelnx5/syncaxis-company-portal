@@ -32,7 +32,7 @@ export default function EmployeeDetail() {
           <Icon name="chevron" size={14} className="back-icon" />
           Back to directory
         </Link>
-        <Link to={`/admin?edit=${employee.id}`} className="back-link">
+        <Link to={`/admin/employees?edit=${employee.id}`} className="back-link">
           <Icon name="edit" size={14} />
           Edit
         </Link>

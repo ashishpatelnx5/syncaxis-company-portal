@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import Icon from './Icon'
 import logo from '../assets/logo.png'
 import { useAuth } from '../context/useAuth'
@@ -9,9 +9,56 @@ const navItems = [
   { to: '/directory', label: 'Directory', icon: 'users' },
   { to: '/hierarchy', label: 'Org Chart', icon: 'sitemap' },
   { to: '/applications', label: 'Applications', icon: 'grid' },
-  { to: '/departments', label: 'Departments', icon: 'building' },
-  { to: '/admin', label: 'Admin', icon: 'settings' },
+  {
+    label: 'Admin',
+    icon: 'settings',
+    match: '/admin',
+    children: [
+      { to: '/admin/employees', label: 'Employees', icon: 'users' },
+      { to: '/admin/departments', label: 'Departments', icon: 'building' },
+    ],
+  },
 ]
+
+function NavGroup({ item, onNavigate }) {
+  const location = useLocation()
+  const isActiveGroup = location.pathname.startsWith(item.match)
+  const [manuallyExpanded, setManuallyExpanded] = useState(false)
+  // Always expanded while on one of this group's own routes — no point
+  // letting a click hide the very sub-item you're currently on — otherwise
+  // follows the manual toggle.
+  const expanded = isActiveGroup || manuallyExpanded
+
+  return (
+    <div className="nav-group">
+      <button
+        type="button"
+        className={`nav-link nav-group-toggle ${isActiveGroup ? 'active' : ''}`}
+        onClick={() => setManuallyExpanded((v) => !v)}
+        aria-expanded={expanded}
+      >
+        <Icon name={item.icon} />
+        <span>{item.label}</span>
+        <Icon name="chevron" size={14} className={`nav-group-chevron ${expanded ? 'expanded' : ''}`} />
+      </button>
+      {expanded && (
+        <div className="nav-subnav">
+          {item.children.map((child) => (
+            <NavLink
+              key={child.to}
+              to={child.to}
+              className={({ isActive }) => `nav-link nav-sublink ${isActive ? 'active' : ''}`}
+              onClick={onNavigate}
+            >
+              <Icon name={child.icon} size={16} />
+              <span>{child.label}</span>
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function Layout() {
   const [open, setOpen] = useState(false)
@@ -39,18 +86,22 @@ export default function Layout() {
           <img src={logo} alt="Syncaxis" className="brand-logo" />
         </div>
         <nav className="nav">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-              onClick={() => setOpen(false)}
-            >
-              <Icon name={item.icon} />
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
+          {navItems.map((item) =>
+            item.children ? (
+              <NavGroup key={item.label} item={item} onNavigate={() => setOpen(false)} />
+            ) : (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+                onClick={() => setOpen(false)}
+              >
+                <Icon name={item.icon} />
+                <span>{item.label}</span>
+              </NavLink>
+            ),
+          )}
         </nav>
         <div className="sidebar-footer">
           <div className="sidebar-user-row">

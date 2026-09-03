@@ -26,7 +26,7 @@ export default function Home() {
             <div className="stat-label">Employees</div>
           </div>
         </Link>
-        <Link to="/departments" className="stat-card">
+        <Link to="/admin/departments" className="stat-card">
           <Icon name="building" size={22} />
           <div>
             <div className="stat-value">{departments.length}</div>

@@ -125,6 +125,35 @@ button, input, select {
   font-size: 14px;
 }
 
+.nav-group-toggle {
+  width: 100%;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nav-group-chevron {
+  margin-left: auto;
+  transition: transform 0.15s ease;
+}
+
+.nav-group-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.nav-subnav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0 2px 14px;
+}
+
+.nav-sublink {
+  font-size: 13px;
+  padding: 7px 12px;
+}
+
 .nav-link:hover {
   background: var(--surface-2);
   color: var(--text);
