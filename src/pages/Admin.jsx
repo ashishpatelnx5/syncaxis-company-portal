@@ -2,12 +2,14 @@ import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import EmployeeForm from '../components/EmployeeForm'
 import Icon from '../components/Icon'
+import { useDepartments } from '../context/useDepartments'
 import { useEmployees } from '../context/useEmployees'
 import { downloadEmployeesModule } from '../utils/exportEmployees'
 import { avatarColor, getDirectReports, initials, managerName } from '../utils/org'
 
 export default function Admin() {
   const { employees, deleteEmployee, isModified, resetToDefaults } = useEmployees()
+  const { departments } = useDepartments()
   const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState('')
   // undefined = closed, null = add-new form, number = editing that id.
@@ -49,6 +51,13 @@ export default function Admin() {
   }
 
   const editingEmployee = typeof editingId === 'number' ? employees.find((e) => e.id === editingId) : null
+
+  function departmentNames(emp) {
+    return (emp.departmentIds || [])
+      .map((id) => departments.find((d) => d.id === id)?.name)
+      .filter(Boolean)
+      .join(', ')
+  }
 
   return (
     <div className="page">
@@ -114,7 +123,7 @@ export default function Admin() {
                   </div>
                 </td>
                 <td>{emp.title || '—'}</td>
-                <td>{emp.department || '—'}</td>
+                <td>{departmentNames(emp) || '—'}</td>
                 <td>{managerName(employees, emp.managerId) || '—'}</td>
                 <td className="admin-row-actions">
                   <button type="button" className="icon-btn" onClick={() => setEditingId(emp.id)} aria-label={`Edit ${emp.name}`}>

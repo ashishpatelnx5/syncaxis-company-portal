@@ -59,6 +59,18 @@ export function EmployeesProvider({ children }) {
       )
     }
 
+    // Strips a deleted department out of everyone's departmentIds instead of
+    // leaving a dangling reference behind.
+    function removeDepartmentFromAll(departmentId) {
+      setEmployees((prev) =>
+        prev.map((e) =>
+          e.departmentIds?.includes(departmentId)
+            ? { ...e, departmentIds: e.departmentIds.filter((id) => id !== departmentId) }
+            : e,
+        ),
+      )
+    }
+
     function resetToDefaults() {
       setEmployees(seedEmployees)
     }
@@ -70,6 +82,7 @@ export function EmployeesProvider({ children }) {
       updateEmployee,
       deleteEmployee,
       setDirectReports,
+      removeDepartmentFromAll,
       resetToDefaults,
     }
   }, [employees])

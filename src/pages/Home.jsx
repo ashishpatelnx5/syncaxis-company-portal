@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom'
 import AppCard from '../components/AppCard'
 import Icon from '../components/Icon'
+import { useDepartments } from '../context/useDepartments'
 import { useEmployees } from '../context/useEmployees'
 import { apps } from '../data/apps'
 
 export default function Home() {
   const { employees } = useEmployees()
-  const departments = new Set(employees.map((e) => e.department).filter(Boolean))
+  const { departments } = useDepartments()
 
   return (
     <div className="page">
@@ -25,10 +26,10 @@ export default function Home() {
             <div className="stat-label">Employees</div>
           </div>
         </Link>
-        <Link to="/hierarchy" className="stat-card">
+        <Link to="/departments" className="stat-card">
           <Icon name="building" size={22} />
           <div>
-            <div className="stat-value">{departments.size}</div>
+            <div className="stat-value">{departments.length}</div>
             <div className="stat-label">Departments</div>
           </div>
         </Link>

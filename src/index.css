@@ -385,9 +385,15 @@ button, input, select {
   margin-top: 1px;
 }
 
+.employee-dept-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
 .employee-dept {
   display: inline-block;
-  margin-top: 6px;
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -948,6 +954,10 @@ a.mini-person:hover .mini-name {
   z-index: 50;
 }
 
+.modal-panel-narrow {
+  max-width: 380px;
+}
+
 .modal-panel {
   background: var(--surface);
   border-radius: var(--radius);
@@ -1058,8 +1068,6 @@ a.mini-person:hover .mini-name {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 8px 12px;
-  max-height: 180px;
-  overflow-y: auto;
   padding: 4px;
 }
 

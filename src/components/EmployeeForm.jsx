@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Icon from './Icon'
+import { useDepartments } from '../context/useDepartments'
 import { useEmployees } from '../context/useEmployees'
 import { getAncestorChain, getDescendantIds, getDirectReports } from '../utils/org'
 
@@ -7,7 +8,7 @@ const emptyForm = {
   name: '',
   employeeId: '',
   title: '',
-  department: '',
+  departmentIds: [],
   email: '',
   phone: '',
   emergencyContact: { name: '', relation: '', phone: '' },
@@ -16,6 +17,7 @@ const emptyForm = {
 
 export default function EmployeeForm({ employee, onClose }) {
   const { employees, addEmployee, updateEmployee, setDirectReports } = useEmployees()
+  const { departments } = useDepartments()
   const isNew = employee == null
 
   const [form, setForm] = useState(() =>
@@ -25,7 +27,7 @@ export default function EmployeeForm({ employee, onClose }) {
           name: employee.name,
           employeeId: employee.employeeId || '',
           title: employee.title || '',
-          department: employee.department || '',
+          departmentIds: employee.departmentIds || [],
           email: employee.email || '',
           phone: employee.phone || '',
           emergencyContact: {
@@ -55,12 +57,23 @@ export default function EmployeeForm({ employee, onClose }) {
     .filter((e) => !reportExclusions.has(e.id))
     .sort((a, b) => a.name.localeCompare(b.name))
 
+  const departmentOptions = departments.slice().sort((a, b) => a.name.localeCompare(b.name))
+
   function set(field, value) {
     setForm((f) => ({ ...f, [field]: value }))
   }
 
   function setEmergency(field, value) {
     setForm((f) => ({ ...f, emergencyContact: { ...f.emergencyContact, [field]: value } }))
+  }
+
+  function toggleDepartment(id) {
+    setForm((f) => ({
+      ...f,
+      departmentIds: f.departmentIds.includes(id)
+        ? f.departmentIds.filter((d) => d !== id)
+        : [...f.departmentIds, id],
+    }))
   }
 
   function toggleReport(id) {
@@ -110,24 +123,18 @@ export default function EmployeeForm({ employee, onClose }) {
             </label>
           </div>
 
-          <div className="form-row">
-            <label className="form-field">
-              <span>Department</span>
-              <input value={form.department} onChange={(e) => set('department', e.target.value)} />
-            </label>
-            <label className="form-field">
-              <span>Reports to</span>
-              <select value={form.managerId} onChange={(e) => set('managerId', e.target.value)}>
-                <option value="">— None (top of org) —</option>
-                {managerOptions.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                    {m.title ? ` — ${m.title}` : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+          <label className="form-field">
+            <span>Reports to</span>
+            <select value={form.managerId} onChange={(e) => set('managerId', e.target.value)}>
+              <option value="">— None (top of org) —</option>
+              {managerOptions.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                  {m.title ? ` — ${m.title}` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <div className="form-row">
             <label className="form-field">
@@ -138,6 +145,25 @@ export default function EmployeeForm({ employee, onClose }) {
               <span>Phone</span>
               <input value={form.phone} onChange={(e) => set('phone', e.target.value)} />
             </label>
+          </div>
+
+          <h3 className="form-section-title">Departments</h3>
+          <div className="checkbox-grid">
+            {departmentOptions.map((d) => (
+              <label key={d.id} className="checkbox-item">
+                <input
+                  type="checkbox"
+                  checked={form.departmentIds.includes(d.id)}
+                  onChange={() => toggleDepartment(d.id)}
+                />
+                {d.name}
+              </label>
+            ))}
+            {departmentOptions.length === 0 && (
+              <p className="empty-state">
+                No departments yet — add some on the Departments page first.
+              </p>
+            )}
           </div>
 
           <h3 className="form-section-title">Emergency contact</h3>

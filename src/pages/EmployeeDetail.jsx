@@ -1,12 +1,14 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
 import Icon from '../components/Icon'
 import MiniOrgTree from '../components/MiniOrgTree'
+import { useDepartments } from '../context/useDepartments'
 import { useEmployees } from '../context/useEmployees'
 import { avatarColor, getAncestorChain, getDirectReports, initials } from '../utils/org'
 
 export default function EmployeeDetail() {
   const { id } = useParams()
   const { employees } = useEmployees()
+  const { departments } = useDepartments()
   const employee = employees.find((e) => String(e.id) === id)
 
   if (!employee) return <Navigate to="/directory" replace />
@@ -15,6 +17,9 @@ export default function EmployeeDetail() {
   const reports = getDirectReports(employees, employee.id)
   const emergency = employee.emergencyContact ?? {}
   const hasEmergencyContact = emergency.name || emergency.relation || emergency.phone
+  const departmentNames = (employee.departmentIds || [])
+    .map((deptId) => departments.find((d) => d.id === deptId)?.name)
+    .filter(Boolean)
 
   return (
     <div className="page">
@@ -37,7 +42,7 @@ export default function EmployeeDetail() {
           <h1>{employee.name}</h1>
           <p className="page-subtitle">
             {employee.title || 'Title not set'}
-            {employee.department && ` · ${employee.department}`}
+            {departmentNames.length > 0 && ` · ${departmentNames.join(', ')}`}
             {employee.employeeId && ` · #${employee.employeeId}`}
           </p>
         </div>

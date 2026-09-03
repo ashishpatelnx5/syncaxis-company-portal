@@ -3,6 +3,7 @@ import Layout from './components/Layout'
 import Admin from './pages/Admin'
 import Home from './pages/Home'
 import Applications from './pages/Applications'
+import Departments from './pages/Departments'
 import Directory from './pages/Directory'
 import EmployeeDetail from './pages/EmployeeDetail'
 import Hierarchy from './pages/Hierarchy'
@@ -17,6 +18,7 @@ function App() {
         <Route path="hierarchy" element={<Hierarchy />} />
         <Route path="applications" element={<Applications />} />
         <Route path="admin" element={<Admin />} />
+        <Route path="departments" element={<Departments />} />
       </Route>
     </Routes>
   )
