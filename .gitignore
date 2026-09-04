@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# start.ps1/stop.ps1 runtime state (PID files, logs) — not source
+.run/
+
 # Environment variables — .env holds real values and is never committed;
 # .env.example is the tracked template.
 .env

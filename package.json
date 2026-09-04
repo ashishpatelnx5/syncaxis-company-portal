@@ -12,7 +12,9 @@
     "start": "vite preview --host",
     "server": "npm --prefix server run dev",
     "server:start": "npm --prefix server run start",
-    "server:seed": "npm --prefix server run seed"
+    "server:seed": "npm --prefix server run seed",
+    "app:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start.ps1",
+    "app:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop.ps1"
   },
   "dependencies": {
     "react": "^19.2.8",

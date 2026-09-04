@@ -1,6 +1,6 @@
-// Generates a src/data/employees.js-compatible module from the current
-// (possibly admin-edited) employee list, so local browser-storage changes
-// can be committed back as the shared source of truth.
+// Generates a downloadable JS module snapshot of the current employee list.
+// This is a manual backup only — changes are saved straight to SQL Server
+// through the backend API, not through this file.
 export function generateEmployeesModule(employees) {
   const lines = employees
     .slice()
@@ -8,8 +8,8 @@ export function generateEmployeesModule(employees) {
     .map((e) => `  ${JSON.stringify(e)},`)
 
   return [
-    `// Exported from the Admin page on ${new Date().toISOString().slice(0, 10)}.`,
-    '// Replace src/data/employees.js with this file, then commit and push.',
+    `// Backup snapshot from the Admin page on ${new Date().toISOString().slice(0, 10)}.`,
+    '// For reference only — the live data lives in SQL Server, not this file.',
     'export const employees = [',
     ...lines,
     ']',
