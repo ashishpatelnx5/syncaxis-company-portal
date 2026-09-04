@@ -2,15 +2,21 @@
 
 ## Architecture
 
-Three pieces, all needed together:
+Two pieces, both needed:
 
-1. **Frontend** (this repo's root) — a static React/Vite single-page app.
-2. **Backend API** (`server/`) — a small Node/Express app that the frontend
-   calls for login and all employee/department data. It's the only thing
-   that talks to SQL Server; the browser never connects to the database
-   directly.
-3. **SQL Server database** — `SYNCAXIS_PORTAL`, created by the scripts in
+1. **App service** — one Node/Express process (`server/`) that does two
+   jobs: it's the only thing that talks to SQL Server (login and all
+   employee/department data go through it — the browser never connects to
+   the database directly), and it serves the built frontend (`dist/`, built
+   from this repo's root React/Vite source) on that same port. One process,
+   one port to run and open on a firewall.
+2. **SQL Server database** — `SYNCAXIS_PORTAL`, created by the scripts in
    `database/`.
+
+The frontend and backend are still separate npm projects (root vs.
+`server/`) since they have different dependencies, but in normal use you
+only ever run the one combined service — see
+[scripts/start.ps1](scripts/start.ps1).
 
 ## Database setup
 
@@ -44,8 +50,6 @@ npm run seed             # loads the existing employees/departments and
                           # creates the first admin login (SEED_ADMIN_USERNAME
                           # / SEED_ADMIN_PASSWORD in server/.env) — safe to
                           # re-run; only seeds employees/departments once.
-npm run dev               # dev, restarts on file changes
-# or: npm start            # production
 ```
 
 `DB_SERVER` supports a named instance as `HOST\INSTANCE` (e.g.
@@ -53,37 +57,37 @@ npm run dev               # dev, restarts on file changes
 Windows service to be running on that machine so the instance name can
 resolve; otherwise use `HOST,PORT` or plain `HOST`.
 
-For production, run the backend as a persistent service (e.g. via
-[NSSM](https://nssm.cc/) or `pm2`) rather than a foreground terminal, and
-set `VITE_API_URL` (below) to wherever it's actually reachable — `localhost`
-only works when the frontend and backend run on the same machine.
+## Running the app
 
-## Build
+The easiest way, on Windows: double-click **start.bat** at the repo root
+(or run `npm run app:start`). It builds the frontend fresh and starts the
+backend, which serves both the API and the built frontend on one port
+(`PORT` in `server/.env`, default `8050`) — open `http://localhost:8050`
+(or the server's actual hostname/IP) in a browser. **stop.bat** /
+`npm run app:stop` stops it. See [scripts/start.ps1](scripts/start.ps1) for
+what it actually does — it's a thin wrapper around `npm run build` (root)
+and `npm start` (`server/`).
 
-```bash
-npm run build     # outputs static files to dist/
-npm run preview   # serve that build locally, for a final check before deploying
-```
+For a persistent install (survives a reboot, doesn't need a logged-in
+session), run `server/`'s `npm start` under a service manager instead of
+via the scripts above — e.g. [NSSM](https://nssm.cc/) or `pm2`.
 
-`dist/` is a fully static site — any static file host works. The one
-thing every host needs to be configured for is described below under
-[SPA routing](#spa-routing).
+### Developing with hot reload
 
-### Quick option: `npm start`
-
-For standing the app up on a server without setting up Nginx/IIS/etc.
-(e.g. a Windows Server box), `npm start` builds fresh and serves the
-result on `0.0.0.0` (reachable from other machines on the network, not
-just localhost) on the port set by `VITE_PORT`:
+For active frontend development, run the frontend and backend as two
+separate processes instead of the combined single-service flow above:
 
 ```bash
-npm start
+npm run dev        # root — Vite dev server with hot reload (VITE_PORT, default 5173)
+npm run server      # backend, restarts on file changes (PORT, default 8050)
 ```
 
-This uses `vite preview`, which is fine for internal/small-scale use
-but isn't a hardened production server (no gzip, no caching headers,
-no TLS) — for anything internet-facing or higher-traffic, prefer one
-of the real web servers below.
+In this mode, set `VITE_API_URL=http://localhost:8050` (or wherever the
+backend is running) in the root `.env` so the dev server's API calls reach
+it — by default (unset) API calls go to the same origin the page loaded
+from, which is only correct once the backend is serving the built
+frontend itself. Keep `VITE_PORT` different from the backend's `PORT` so
+the two dev processes don't fight over the same port.
 
 ## Environment variables
 
@@ -94,8 +98,8 @@ without a `.env` file at all:
 
 | Variable | Used for | Fallback |
 |---|---|---|
-| `VITE_PORT` | dev/preview server port | `5173` |
-| `VITE_API_URL` | Backend API base URL (see `server/`) | `http://localhost:4000` |
+| `VITE_PORT` | dev server port (only used by `npm run dev`) | `5173` |
+| `VITE_API_URL` | Backend API base URL — only set this if the frontend is deployed separately from the backend (see [Developing with hot reload](#developing-with-hot-reload)) | same origin as the page (correct once the backend serves the built frontend) |
 | `VITE_WEBMAIL_URL` | Webmail quick link | `https://webmail.syncaxis.com/` |
 | `VITE_ERP_URL` | ERP quick link | `http://erp.syncaxis.com/login` |
 | `VITE_GREYTHR_URL` | GreytHR quick link | `https://syncaxis.greythr.com/` |
@@ -110,9 +114,15 @@ if it runs `npm run build` itself (which is how Netlify, Vercel, and
 most CI-based hosts work). If you instead build locally and upload the
 `dist/` folder, set `.env` before running `npm run build` locally.
 
-## SPA routing
+## SPA routing (only if deploying the frontend separately)
 
-This app uses client-side routing (React Router), so the host must
+The backend's own `express.static` + fallback route (see
+[server/src/app.js](server/src/app.js)) already handles this for the
+normal single-service setup above — nothing to configure. This section
+only applies if you deploy the frontend (`dist/`) to a separate static
+host instead, calling out to the backend via `VITE_API_URL`.
+
+This app uses client-side routing (React Router), so that host must
 serve `index.html` for *every* path (`/directory`, `/employee/12`,
 `/admin`, ...), not just `/`. Without that, refreshing or
 directly opening a link to any page other than the homepage 404s.

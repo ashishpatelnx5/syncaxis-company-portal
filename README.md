@@ -9,20 +9,20 @@ small Node/Express API in [`server/`](server/) — see
 [DEPLOYMENT.md](DEPLOYMENT.md#architecture) for how the pieces fit
 together and how to set up the database.
 
-## Local development
+## Running it
 
 ```bash
 npm install
-cp .env.example .env   # then edit .env as needed
-
-# In a second terminal — see server/README setup in DEPLOYMENT.md first
-cd server && cp .env.example .env && npm install && npm run seed && npm run dev
+cp .env.example .env    # then edit .env as needed
+cd server && cp .env.example .env && npm install && npm run seed && cd ..
 ```
 
-Back in the first terminal, `npm run dev` starts the frontend on the
-port set by `VITE_PORT` in `.env` (falls back to Vite's default, 5173,
-if unset). `strictPort` is on, so it fails loudly instead of silently
-picking a different port if that one is already taken.
+Then either double-click **start.bat** (Windows) / run `npm run app:start`
+— builds the frontend and starts the backend, which serves both the API
+and the built frontend on one port — or, for active development with hot
+reload, run `npm run dev` (frontend) and `npm run server` (backend) as two
+separate terminals. See [DEPLOYMENT.md](DEPLOYMENT.md#architecture) for
+details on both.
 
 ## Deployment
 

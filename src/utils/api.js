@@ -1,4 +1,7 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+// Empty string = same origin the page was served from, which is correct now
+// that the backend serves the built frontend itself (see server/src/app.js).
+// Only set VITE_API_URL if the frontend is deployed separately from the API.
+const API_URL = import.meta.env.VITE_API_URL || ''
 const TOKEN_KEY = 'syncaxis-token'
 
 export function getToken() {

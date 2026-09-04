@@ -7,7 +7,7 @@ function required(name) {
 }
 
 export const env = {
-  port: Number(process.env.PORT) || 4000,
+  port: Number(process.env.PORT) || 8050,
   db: {
     server: required('DB_SERVER'),
     database: required('DB_NAME'),

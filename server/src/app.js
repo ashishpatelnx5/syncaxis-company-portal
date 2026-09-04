@@ -1,9 +1,15 @@
 import cors from 'cors'
 import express from 'express'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import { env } from './config/env.js'
 import authRoutes from './routes/auth.js'
 import departmentsRoutes from './routes/departments.js'
 import employeesRoutes from './routes/employees.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+// The frontend's build output — one level up from server/, in the repo root.
+const distDir = path.resolve(__dirname, '../../dist')
 
 const app = express()
 
@@ -14,8 +20,15 @@ app.get('/api/health', (req, res) => res.json({ ok: true }))
 app.use('/api/auth', authRoutes)
 app.use('/api/employees', employeesRoutes)
 app.use('/api/departments', departmentsRoutes)
+app.use('/api', (req, res) => res.status(404).json({ error: 'Not found.' }))
 
-app.use((req, res) => res.status(404).json({ error: 'Not found.' }))
+// Serves the built React app on this same port/process — run `npm run
+// build` in the repo root first. Any route that isn't /api/* falls back to
+// index.html so React Router can handle client-side navigation.
+app.use(express.static(distDir))
+app.get(/^(?!\/api).*/, (req, res) => {
+  res.sendFile(path.join(distDir, 'index.html'))
+})
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {

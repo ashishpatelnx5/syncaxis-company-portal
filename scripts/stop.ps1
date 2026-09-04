@@ -1,7 +1,6 @@
 <#
-Stops the backend API and frontend processes started by start.ps1, killing
-each one's full process tree (npm/cmd spawn child node processes that would
-otherwise be left running).
+Stops the app process started by start.ps1, killing its full process tree
+(npm/cmd spawn a child node process that would otherwise be left running).
 #>
 
 $root = Split-Path -Parent $PSScriptRoot
@@ -23,5 +22,9 @@ function Stop-App($name, $pidFile) {
     Remove-Item $pidFile -ErrorAction SilentlyContinue
 }
 
-Stop-App -name 'Backend API' -pidFile (Join-Path $runDir 'backend.pid')
-Stop-App -name 'Frontend' -pidFile (Join-Path $runDir 'frontend.pid')
+Stop-App -name 'App' -pidFile (Join-Path $runDir 'app.pid')
+
+# Clean up PID files from the older two-process version of this script, if
+# a machine still has one of those running.
+Stop-App -name 'Backend API (legacy)' -pidFile (Join-Path $runDir 'backend.pid')
+Stop-App -name 'Frontend (legacy)' -pidFile (Join-Path $runDir 'frontend.pid')
