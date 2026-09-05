@@ -4,8 +4,10 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { env } from './config/env.js'
 import authRoutes from './routes/auth.js'
+import dailyPlansRoutes from './routes/dailyPlans.js'
 import departmentsRoutes from './routes/departments.js'
 import employeesRoutes from './routes/employees.js'
+import jobDescriptionsRoutes from './routes/jobDescriptions.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // The frontend's build output — one level up from server/, in the repo root.
@@ -20,6 +22,8 @@ app.get('/api/health', (req, res) => res.json({ ok: true }))
 app.use('/api/auth', authRoutes)
 app.use('/api/employees', employeesRoutes)
 app.use('/api/departments', departmentsRoutes)
+app.use('/api/job-descriptions', jobDescriptionsRoutes)
+app.use('/api/daily-plans', dailyPlansRoutes)
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found.' }))
 
 // Serves the built React app on this same port/process — run `npm run
@@ -32,6 +36,9 @@ app.get(/^(?!\/api).*/, (req, res) => {
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'That photo is too large — try a smaller image.' })
+  }
   console.error(err)
   res.status(500).json({ error: 'Something went wrong on the server.' })
 })

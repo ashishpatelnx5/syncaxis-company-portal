@@ -21,6 +21,7 @@ function toEmployee(row, departmentIdsByEmployee) {
       phone: row.EmergencyContactPhone || '',
     },
     managerId: row.ManagerId,
+    jobDescriptionId: row.JobDescriptionId,
   }
 }
 
@@ -81,17 +82,24 @@ router.post('/', async (req, res, next) => {
       .input('phone', sql.NVarChar(50), body.phone || null)
       .input('photoUrl', sql.NVarChar(sql.MAX), body.photo || null)
       .input('managerId', sql.Int, body.managerId ?? null)
+      .input('jobDescriptionId', sql.Int, body.jobDescriptionId ?? null)
       .input('emergencyName', sql.NVarChar(200), body.emergencyContact?.name || null)
       .input('emergencyRelation', sql.NVarChar(100), body.emergencyContact?.relation || null)
+      // No OUTPUT clause — portal.Employees has an UpdatedAt trigger, and
+      // SQL Server disallows OUTPUT INSERTED/DELETED without INTO on a
+      // table with any enabled trigger. Fetch the row separately instead.
       .input('emergencyPhone', sql.NVarChar(50), body.emergencyContact?.phone || null).query(`
         INSERT INTO portal.Employees
-          (EmployeeCode, Name, Title, Email, Phone, PhotoUrl, ManagerId, EmergencyContactName, EmergencyContactRelation, EmergencyContactPhone)
-        OUTPUT INSERTED.*
+          (EmployeeCode, Name, Title, Email, Phone, PhotoUrl, ManagerId, JobDescriptionId, EmergencyContactName, EmergencyContactRelation, EmergencyContactPhone)
         VALUES
-          (@employeeCode, @name, @title, @email, @phone, @photoUrl, @managerId, @emergencyName, @emergencyRelation, @emergencyPhone)
+          (@employeeCode, @name, @title, @email, @phone, @photoUrl, @managerId, @jobDescriptionId, @emergencyName, @emergencyRelation, @emergencyPhone);
+        SELECT CAST(SCOPE_IDENTITY() AS INT) AS EmployeeId;
       `)
 
-    const row = insertResult.recordset[0]
+    const selectResult = await new sql.Request(transaction)
+      .input('id', sql.Int, insertResult.recordset[0].EmployeeId)
+      .query('SELECT * FROM portal.Employees WHERE EmployeeId = @id')
+    const row = selectResult.recordset[0]
     await replaceDepartments(transaction, row.EmployeeId, body.departmentIds)
     await transaction.commit()
 
@@ -121,22 +129,27 @@ router.put('/:id', async (req, res, next) => {
       .input('phone', sql.NVarChar(50), body.phone || null)
       .input('photoUrl', sql.NVarChar(sql.MAX), body.photo || null)
       .input('managerId', sql.Int, body.managerId ?? null)
+      .input('jobDescriptionId', sql.Int, body.jobDescriptionId ?? null)
       .input('emergencyName', sql.NVarChar(200), body.emergencyContact?.name || null)
       .input('emergencyRelation', sql.NVarChar(100), body.emergencyContact?.relation || null)
+      // No OUTPUT clause — same trigger restriction as the insert above.
       .input('emergencyPhone', sql.NVarChar(50), body.emergencyContact?.phone || null).query(`
         UPDATE portal.Employees SET
           EmployeeCode = @employeeCode, Name = @name, Title = @title, Email = @email, Phone = @phone,
-          PhotoUrl = @photoUrl, ManagerId = @managerId, EmergencyContactName = @emergencyName,
+          PhotoUrl = @photoUrl, ManagerId = @managerId, JobDescriptionId = @jobDescriptionId, EmergencyContactName = @emergencyName,
           EmergencyContactRelation = @emergencyRelation, EmergencyContactPhone = @emergencyPhone
-        OUTPUT INSERTED.*
         WHERE EmployeeId = @id
       `)
 
-    const row = updateResult.recordset[0]
-    if (!row) {
+    if (updateResult.rowsAffected[0] === 0) {
       await transaction.rollback()
       return res.status(404).json({ error: 'Employee not found.' })
     }
+
+    const selectResult = await new sql.Request(transaction)
+      .input('id', sql.Int, id)
+      .query('SELECT * FROM portal.Employees WHERE EmployeeId = @id')
+    const row = selectResult.recordset[0]
 
     await replaceDepartments(transaction, id, body.departmentIds)
     await transaction.commit()

@@ -6,16 +6,23 @@ import MiniOrgTree from '../components/MiniOrgTree'
 import PhotoLightbox from '../components/PhotoLightbox'
 import { useDepartments } from '../context/useDepartments'
 import { useEmployees } from '../context/useEmployees'
+import { useJobDescriptions } from '../context/useJobDescriptions'
 import { getAncestorChain, getDirectReports } from '../utils/org'
 
 export default function EmployeeDetail() {
   const { id } = useParams()
-  const { employees } = useEmployees()
+  const { employees, isLoading } = useEmployees()
   const { departments } = useDepartments()
+  const { jobDescriptions } = useJobDescriptions()
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const employee = employees.find((e) => String(e.id) === id)
 
+  // Wait for the fetch to finish before deciding this id doesn't exist — on
+  // a fresh page load (a bookmarked link, a refresh) the list starts empty.
+  if (isLoading) return null
   if (!employee) return <Navigate to="/directory" replace />
+
+  const jobDescription = jobDescriptions.find((jd) => jd.id === employee.jobDescriptionId)
 
   const chain = getAncestorChain(employees, employee.id)
   const reports = getDirectReports(employees, employee.id)
@@ -118,6 +125,15 @@ export default function EmployeeDetail() {
           )}
         </section>
       </div>
+
+      {jobDescription && (
+        <section className="section">
+          <h2>Job description</h2>
+          <Link to={`/job-descriptions/${jobDescription.id}`} className="jd-holder-chip">
+            {jobDescription.title}
+          </Link>
+        </section>
+      )}
 
       <section className="section">
         <h2>Where {employee.name.split(' ')[0]} fits</h2>

@@ -3,6 +3,7 @@ import Avatar from './Avatar'
 import Icon from './Icon'
 import { useDepartments } from '../context/useDepartments'
 import { useEmployees } from '../context/useEmployees'
+import { useJobDescriptions } from '../context/useJobDescriptions'
 import { fileToResizedDataUrl } from '../utils/image'
 import { getAncestorChain, getDescendantIds, getDirectReports } from '../utils/org'
 
@@ -16,11 +17,13 @@ const emptyForm = {
   phone: '',
   emergencyContact: { name: '', relation: '', phone: '' },
   managerId: '',
+  jobDescriptionId: '',
 }
 
 export default function EmployeeForm({ employee, onClose }) {
   const { employees, addEmployee, updateEmployee, setDirectReports } = useEmployees()
   const { departments } = useDepartments()
+  const { jobDescriptions } = useJobDescriptions()
   const isNew = employee == null
 
   const [form, setForm] = useState(() =>
@@ -40,6 +43,7 @@ export default function EmployeeForm({ employee, onClose }) {
             phone: employee.emergencyContact?.phone || '',
           },
           managerId: employee.managerId ?? '',
+          jobDescriptionId: employee.jobDescriptionId ?? '',
         },
   )
   const [reportIds, setReportIds] = useState(() =>
@@ -52,15 +56,23 @@ export default function EmployeeForm({ employee, onClose }) {
 
   // Exclude self and descendants from "reports to" (can't report to your own
   // report — that's a cycle), and self and ancestors from "direct reports"
-  // (can't have your own manager start reporting to you).
-  const managerExclusions = new Set(isNew ? [] : [employee.id, ...getDescendantIds(employees, employee.id)])
+  // (can't have your own manager start reporting to you). Also cross-exclude
+  // whatever's currently picked in the *other* field — without this, a new
+  // employee (with no existing ancestors/descendants to exclude yet) could
+  // be saved reporting to someone who's also checked as one of their direct
+  // reports, a two-person cycle that freezes the org chart/detail pages.
+  const managerExclusions = new Set([
+    ...(isNew ? [] : [employee.id, ...getDescendantIds(employees, employee.id)]),
+    ...reportIds,
+  ])
   const managerOptions = employees
     .filter((e) => !managerExclusions.has(e.id))
     .sort((a, b) => a.name.localeCompare(b.name))
 
-  const reportExclusions = new Set(
-    isNew ? [] : [employee.id, ...getAncestorChain(employees, employee.id).map((e) => e.id)],
-  )
+  const reportExclusions = new Set([
+    ...(isNew ? [] : [employee.id, ...getAncestorChain(employees, employee.id).map((e) => e.id)]),
+    ...(form.managerId !== '' ? [Number(form.managerId)] : []),
+  ])
   const reportOptions = employees
     .filter((e) => !reportExclusions.has(e.id))
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -109,7 +121,11 @@ export default function EmployeeForm({ employee, onClose }) {
     e.preventDefault()
     if (!form.name.trim()) return
 
-    const payload = { ...form, managerId: form.managerId === '' ? null : Number(form.managerId) }
+    const payload = {
+      ...form,
+      managerId: form.managerId === '' ? null : Number(form.managerId),
+      jobDescriptionId: form.jobDescriptionId === '' ? null : Number(form.jobDescriptionId),
+    }
 
     setSubmitting(true)
     setSubmitError('')
@@ -174,6 +190,21 @@ export default function EmployeeForm({ employee, onClose }) {
               <input value={form.title} onChange={(e) => set('title', e.target.value)} />
             </label>
           </div>
+
+          <label className="form-field">
+            <span>Job description</span>
+            <select value={form.jobDescriptionId} onChange={(e) => set('jobDescriptionId', e.target.value)}>
+              <option value="">— None —</option>
+              {jobDescriptions
+                .slice()
+                .sort((a, b) => a.title.localeCompare(b.title))
+                .map((jd) => (
+                  <option key={jd.id} value={jd.id}>
+                    {jd.title}
+                  </option>
+                ))}
+            </select>
+          </label>
 
           <label className="form-field">
             <span>Reports to</span>

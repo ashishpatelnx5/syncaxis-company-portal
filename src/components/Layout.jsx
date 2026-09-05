@@ -9,6 +9,9 @@ const navItems = [
   { to: '/directory', label: 'Directory', icon: 'users' },
   { to: '/hierarchy', label: 'Org Chart', icon: 'sitemap' },
   { to: '/applications', label: 'Applications', icon: 'grid' },
+  { to: '/holidays', label: 'Holidays', icon: 'calendar' },
+  { to: '/job-descriptions', label: 'Job Descriptions', icon: 'briefcase' },
+  { to: '/daily-plan', label: 'Daily Plan', icon: 'clipboard' },
   {
     label: 'Admin',
     icon: 'settings',
@@ -16,6 +19,8 @@ const navItems = [
     children: [
       { to: '/admin/employees', label: 'Employees', icon: 'users' },
       { to: '/admin/departments', label: 'Departments', icon: 'building' },
+      { to: '/admin/job-descriptions', label: 'Job Descriptions', icon: 'briefcase' },
+      { to: '/admin/daily-plans', label: 'Team Daily Plans', icon: 'clipboard' },
     ],
   },
 ]
@@ -85,6 +90,15 @@ export default function Layout() {
         <div className="brand">
           <img src={logo} alt="Syncaxis" className="brand-logo" />
         </div>
+        <div className="sidebar-user-row sidebar-user-row-top">
+          <span className="sidebar-user">
+            <Icon name="user" size={14} />
+            {user?.username}
+          </span>
+          <button type="button" className="icon-btn" onClick={handleLogout} aria-label="Log out">
+            <Icon name="logout" size={15} />
+          </button>
+        </div>
         <nav className="nav">
           {navItems.map((item) =>
             item.children ? (
@@ -104,15 +118,6 @@ export default function Layout() {
           )}
         </nav>
         <div className="sidebar-footer">
-          <div className="sidebar-user-row">
-            <span className="sidebar-user">
-              <Icon name="user" size={14} />
-              {user?.username}
-            </span>
-            <button type="button" className="icon-btn" onClick={handleLogout} aria-label="Log out">
-              <Icon name="logout" size={15} />
-            </button>
-          </div>
           <div className="sidebar-tagline">Syncaxis Company Portal</div>
         </div>
       </aside>

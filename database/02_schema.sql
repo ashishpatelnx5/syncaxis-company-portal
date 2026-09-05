@@ -46,6 +46,22 @@ BEGIN
 END
 GO
 
+IF OBJECT_ID('portal.JobDescriptions', 'U') IS NULL
+BEGIN
+    CREATE TABLE portal.JobDescriptions (
+        JobDescriptionId    INT IDENTITY(1,1) NOT NULL,
+        Title                NVARCHAR(200)     NOT NULL,
+        DepartmentId         INT               NOT NULL,
+        ReportingTo          NVARCHAR(200)     NULL,
+        ContentJson          NVARCHAR(MAX)     NOT NULL,
+        CreatedAt            DATETIME2         NOT NULL CONSTRAINT DF_JobDescriptions_CreatedAt DEFAULT SYSUTCDATETIME(),
+        UpdatedAt            DATETIME2         NOT NULL CONSTRAINT DF_JobDescriptions_UpdatedAt DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT PK_JobDescriptions PRIMARY KEY (JobDescriptionId),
+        CONSTRAINT FK_JobDescriptions_Department FOREIGN KEY (DepartmentId) REFERENCES portal.Departments (DepartmentId)
+    );
+END
+GO
+
 IF OBJECT_ID('portal.Employees', 'U') IS NULL
 BEGIN
     CREATE TABLE portal.Employees (
@@ -57,14 +73,16 @@ BEGIN
         Phone                       NVARCHAR(50)        NULL,
         PhotoUrl                    NVARCHAR(MAX)        NULL,
         ManagerId                   INT                  NULL,
+        JobDescriptionId            INT                  NULL,
         EmergencyContactName        NVARCHAR(200)        NULL,
         EmergencyContactRelation    NVARCHAR(100)        NULL,
         EmergencyContactPhone       NVARCHAR(50)         NULL,
         CreatedAt                   DATETIME2           NOT NULL CONSTRAINT DF_Employees_CreatedAt DEFAULT SYSUTCDATETIME(),
         UpdatedAt                   DATETIME2           NOT NULL CONSTRAINT DF_Employees_UpdatedAt DEFAULT SYSUTCDATETIME(),
         CONSTRAINT PK_Employees PRIMARY KEY (EmployeeId),
-        CONSTRAINT UQ_Employees_EmployeeCode UNIQUE (EmployeeCode),
-        CONSTRAINT FK_Employees_Manager FOREIGN KEY (ManagerId) REFERENCES portal.Employees (EmployeeId)
+        CONSTRAINT FK_Employees_Manager FOREIGN KEY (ManagerId) REFERENCES portal.Employees (EmployeeId),
+        CONSTRAINT FK_Employees_JobDescription FOREIGN KEY (JobDescriptionId)
+            REFERENCES portal.JobDescriptions (JobDescriptionId) ON DELETE SET NULL
     );
 END
 GO
@@ -79,6 +97,46 @@ BEGIN
             REFERENCES portal.Employees (EmployeeId) ON DELETE CASCADE,
         CONSTRAINT FK_EmployeeDepartments_Department FOREIGN KEY (DepartmentId)
             REFERENCES portal.Departments (DepartmentId) ON DELETE CASCADE
+    );
+END
+GO
+
+IF OBJECT_ID('portal.DailyPlans', 'U') IS NULL
+BEGIN
+    CREATE TABLE portal.DailyPlans (
+        DailyPlanId      INT IDENTITY(1,1) NOT NULL,
+        EmployeeId       INT               NOT NULL,
+        PlanDate         DATE              NOT NULL,
+        SelfAssessment   INT               NULL,
+        CreatedAt        DATETIME2         NOT NULL CONSTRAINT DF_DailyPlans_CreatedAt DEFAULT SYSUTCDATETIME(),
+        UpdatedAt        DATETIME2         NOT NULL CONSTRAINT DF_DailyPlans_UpdatedAt DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT PK_DailyPlans PRIMARY KEY (DailyPlanId),
+        CONSTRAINT UQ_DailyPlans_Employee_Date UNIQUE (EmployeeId, PlanDate),
+        CONSTRAINT FK_DailyPlans_Employee FOREIGN KEY (EmployeeId)
+            REFERENCES portal.Employees (EmployeeId) ON DELETE CASCADE,
+        CONSTRAINT CK_DailyPlans_SelfAssessment CHECK (SelfAssessment IS NULL OR SelfAssessment BETWEEN 0 AND 100)
+    );
+END
+GO
+
+IF OBJECT_ID('portal.DailyPlanSlots', 'U') IS NULL
+BEGIN
+    -- SlotIndex identifies which of the 8 fixed time blocks (defined in the
+    -- frontend, src/data/dailyPlanSlots.js) this row is for — the schema
+    -- doesn't store slot times since they're the same for every day.
+    CREATE TABLE portal.DailyPlanSlots (
+        DailyPlanSlotId    INT IDENTITY(1,1) NOT NULL,
+        DailyPlanId        INT               NOT NULL,
+        SlotIndex          INT               NOT NULL,
+        PlanText           NVARCHAR(500)     NULL,
+        ActualText         NVARCHAR(500)     NULL,
+        ValueAddedHrs      DECIMAL(4,2)      NULL,
+        NonValueAddedHrs   DECIMAL(4,2)      NULL,
+        Remarks            NVARCHAR(500)     NULL,
+        CONSTRAINT PK_DailyPlanSlots PRIMARY KEY (DailyPlanSlotId),
+        CONSTRAINT UQ_DailyPlanSlots_Plan_Slot UNIQUE (DailyPlanId, SlotIndex),
+        CONSTRAINT FK_DailyPlanSlots_DailyPlan FOREIGN KEY (DailyPlanId)
+            REFERENCES portal.DailyPlans (DailyPlanId) ON DELETE CASCADE
     );
 END
 GO
@@ -109,8 +167,32 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Employees_ManagerId' A
     CREATE INDEX IX_Employees_ManagerId ON portal.Employees (ManagerId);
 GO
 
+-- A plain UNIQUE constraint would only allow ONE NULL EmployeeCode across
+-- the whole table (unlike most databases, SQL Server treats a unique
+-- index's NULLs as a value that itself must be unique) — a filtered index
+-- lets any number of employees have a blank employee ID.
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Employees_EmployeeCode' AND object_id = OBJECT_ID('portal.Employees'))
+    CREATE UNIQUE INDEX UX_Employees_EmployeeCode ON portal.Employees (EmployeeCode) WHERE EmployeeCode IS NOT NULL;
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_EmployeeDepartments_DepartmentId' AND object_id = OBJECT_ID('portal.EmployeeDepartments'))
     CREATE INDEX IX_EmployeeDepartments_DepartmentId ON portal.EmployeeDepartments (DepartmentId);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_JobDescriptions_DepartmentId' AND object_id = OBJECT_ID('portal.JobDescriptions'))
+    CREATE INDEX IX_JobDescriptions_DepartmentId ON portal.JobDescriptions (DepartmentId);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Employees_JobDescriptionId' AND object_id = OBJECT_ID('portal.Employees'))
+    CREATE INDEX IX_Employees_JobDescriptionId ON portal.Employees (JobDescriptionId);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_DailyPlans_PlanDate' AND object_id = OBJECT_ID('portal.DailyPlans'))
+    CREATE INDEX IX_DailyPlans_PlanDate ON portal.DailyPlans (PlanDate);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_DailyPlanSlots_DailyPlanId' AND object_id = OBJECT_ID('portal.DailyPlanSlots'))
+    CREATE INDEX IX_DailyPlanSlots_DailyPlanId ON portal.DailyPlanSlots (DailyPlanId);
 GO
 
 -- ============================================================
@@ -144,6 +226,26 @@ BEGIN
     UPDATE u SET UpdatedAt = SYSUTCDATETIME()
     FROM portal.Users u
     JOIN inserted i ON i.UserId = u.UserId;
+END
+GO
+
+CREATE OR ALTER TRIGGER portal.TR_JobDescriptions_UpdatedAt ON portal.JobDescriptions
+AFTER UPDATE AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE j SET UpdatedAt = SYSUTCDATETIME()
+    FROM portal.JobDescriptions j
+    JOIN inserted i ON i.JobDescriptionId = j.JobDescriptionId;
+END
+GO
+
+CREATE OR ALTER TRIGGER portal.TR_DailyPlans_UpdatedAt ON portal.DailyPlans
+AFTER UPDATE AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE p SET UpdatedAt = SYSUTCDATETIME()
+    FROM portal.DailyPlans p
+    JOIN inserted i ON i.DailyPlanId = p.DailyPlanId;
 END
 GO
 
