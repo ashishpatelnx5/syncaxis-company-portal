@@ -6,15 +6,18 @@ import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 import { DepartmentsProvider } from './context/DepartmentsContext.jsx'
 import { EmployeesProvider } from './context/EmployeesContext.jsx'
+import { JobDescriptionsProvider } from './context/JobDescriptionsContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
         <DepartmentsProvider>
-          <EmployeesProvider>
-            <App />
-          </EmployeesProvider>
+          <JobDescriptionsProvider>
+            <EmployeesProvider>
+              <App />
+            </EmployeesProvider>
+          </JobDescriptionsProvider>
         </DepartmentsProvider>
       </AuthProvider>
     </BrowserRouter>
