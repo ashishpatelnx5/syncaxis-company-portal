@@ -10,7 +10,7 @@ import employeesRoutes from './routes/employees.js'
 import jobDescriptionsRoutes from './routes/jobDescriptions.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-// The frontend's build output — one level up from server/, in the repo root.
+// The frontend's build output — one level up from server/, in app/.
 const distDir = path.resolve(__dirname, '../../dist')
 
 const app = express()
@@ -27,7 +27,7 @@ app.use('/api/daily-plans', dailyPlansRoutes)
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found.' }))
 
 // Serves the built React app on this same port/process — run `npm run
-// build` in the repo root first. Any route that isn't /api/* falls back to
+// build` in app/ first. Any route that isn't /api/* falls back to
 // index.html so React Router can handle client-side navigation.
 app.use(express.static(distDir))
 app.get(/^(?!\/api).*/, (req, res) => {
