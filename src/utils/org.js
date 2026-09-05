@@ -21,12 +21,16 @@ export function managerName(employees, managerId) {
   return employees.find((e) => e.id === managerId)?.name ?? null
 }
 
-// Root-to-self chain: [top of the org, ..., this person].
+// Root-to-self chain: [top of the org, ..., this person]. Guards against a
+// cycle in managerId data (e.g. two people set as each other's manager) —
+// without it, a cycle would spin this loop forever and freeze the page.
 export function getAncestorChain(employees, id) {
   const byId = new Map(employees.map((e) => [e.id, e]))
   const chain = []
+  const visited = new Set()
   let current = byId.get(id)
-  while (current) {
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id)
     chain.unshift(current)
     current = current.managerId != null ? byId.get(current.managerId) : undefined
   }
@@ -40,9 +44,12 @@ export function getDirectReports(employees, id) {
 
 // Every id reporting to this person, at any depth — used to stop the admin
 // form from letting someone report to their own descendant (a cycle).
-export function getDescendantIds(employees, id) {
+// `seen` guards against a cycle already present in the data recursing forever.
+export function getDescendantIds(employees, id, seen = new Set()) {
+  if (seen.has(id)) return []
+  seen.add(id)
   const direct = employees.filter((e) => e.managerId === id)
-  return direct.flatMap((e) => [e.id, ...getDescendantIds(employees, e.id)])
+  return direct.flatMap((e) => [e.id, ...getDescendantIds(employees, e.id, seen)])
 }
 
 export function initials(name) {

@@ -17,6 +17,13 @@ export const apps = [
     icon: 'erp',
   },
   {
+    id: 'erp-dashboard',
+    name: 'ERP Dashboard',
+    description: 'ERP reports and dashboard',
+    url: import.meta.env.VITE_ERP_DASHBOARD_URL || 'http://192.168.3.9:8055/',
+    icon: 'grid',
+  },
+  {
     id: 'greythr',
     name: 'GreytHR',
     description: 'Leave, attendance, and payroll management',

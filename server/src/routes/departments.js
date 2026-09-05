@@ -25,10 +25,18 @@ router.post('/', async (req, res, next) => {
     if (!name) return res.status(400).json({ error: 'Name is required.' })
 
     const pool = await getPool()
-    const result = await pool
+    // No OUTPUT clause here — portal.Departments has an UpdatedAt trigger,
+    // and SQL Server disallows OUTPUT INSERTED/DELETED without INTO on a
+    // table with any enabled trigger. Fetch the row separately instead.
+    const insertResult = await pool
       .request()
       .input('name', sql.NVarChar(100), name)
-      .query('INSERT INTO portal.Departments (Name) OUTPUT INSERTED.DepartmentId, INSERTED.Name VALUES (@name)')
+      .query('INSERT INTO portal.Departments (Name) VALUES (@name); SELECT CAST(SCOPE_IDENTITY() AS INT) AS DepartmentId;')
+
+    const result = await pool
+      .request()
+      .input('id', sql.Int, insertResult.recordset[0].DepartmentId)
+      .query('SELECT DepartmentId, Name FROM portal.Departments WHERE DepartmentId = @id')
 
     res.status(201).json(toDepartment(result.recordset[0]))
   } catch (err) {
@@ -43,17 +51,22 @@ router.put('/:id', async (req, res, next) => {
     if (!name) return res.status(400).json({ error: 'Name is required.' })
 
     const pool = await getPool()
-    const result = await pool
+    // Same OUTPUT-vs-trigger restriction as the insert above — plain update,
+    // then a separate select.
+    const updateResult = await pool
       .request()
       .input('id', sql.Int, req.params.id)
       .input('name', sql.NVarChar(100), name)
-      .query(
-        'UPDATE portal.Departments SET Name = @name OUTPUT INSERTED.DepartmentId, INSERTED.Name WHERE DepartmentId = @id',
-      )
+      .query('UPDATE portal.Departments SET Name = @name WHERE DepartmentId = @id')
 
-    const row = result.recordset[0]
-    if (!row) return res.status(404).json({ error: 'Department not found.' })
-    res.json(toDepartment(row))
+    if (updateResult.rowsAffected[0] === 0) return res.status(404).json({ error: 'Department not found.' })
+
+    const result = await pool
+      .request()
+      .input('id', sql.Int, req.params.id)
+      .query('SELECT DepartmentId, Name FROM portal.Departments WHERE DepartmentId = @id')
+
+    res.json(toDepartment(result.recordset[0]))
   } catch (err) {
     if (err.number === 2627 || err.number === 2601) return res.status(409).json({ error: 'A department with that name already exists.' })
     next(err)

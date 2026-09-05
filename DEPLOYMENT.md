@@ -102,6 +102,7 @@ without a `.env` file at all:
 | `VITE_API_URL` | Backend API base URL — only set this if the frontend is deployed separately from the backend (see [Developing with hot reload](#developing-with-hot-reload)) | same origin as the page (correct once the backend serves the built frontend) |
 | `VITE_WEBMAIL_URL` | Webmail quick link | `https://webmail.syncaxis.com/` |
 | `VITE_ERP_URL` | ERP quick link | `http://erp.syncaxis.com/login` |
+| `VITE_ERP_DASHBOARD_URL` | ERP Dashboard quick link | `http://192.168.3.9:8055/` |
 | `VITE_GREYTHR_URL` | GreytHR quick link | `https://syncaxis.greythr.com/` |
 | `VITE_INQUIRY_URL` | Inquiry portal quick link | `https://inquiry.syncaxis.com/` |
 

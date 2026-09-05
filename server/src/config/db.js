@@ -22,7 +22,16 @@ let poolPromise
 
 export function getPool() {
   if (!poolPromise) {
-    poolPromise = new sql.ConnectionPool(config).connect().catch((err) => {
+    const pool = new sql.ConnectionPool(config)
+    // ConnectionPool is an EventEmitter — an 'error' event with no listener
+    // (e.g. a dropped connection, a network blip) crashes the entire Node
+    // process by design. Log it and drop the pool instead, so the next
+    // request just reconnects.
+    pool.on('error', (err) => {
+      console.error('SQL Server connection pool error:', err)
+      poolPromise = undefined
+    })
+    poolPromise = pool.connect().catch((err) => {
       poolPromise = undefined // allow the next request to retry rather than staying stuck on a dead promise
       throw err
     })

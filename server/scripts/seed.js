@@ -49,20 +49,24 @@ async function seedDepartmentsAndEmployees(pool) {
   try {
     const departmentIdMap = new Map() // old static id -> new DepartmentId
     for (const dept of departments) {
+      // No OUTPUT clause — portal.Departments has an UpdatedAt trigger, and
+      // SQL Server disallows OUTPUT INSERTED/DELETED without INTO on a
+      // table with any enabled trigger. SCOPE_IDENTITY() instead.
       const result = await new sql.Request(transaction)
         .input('name', sql.NVarChar(100), dept.name)
-        .query('INSERT INTO portal.Departments (Name) OUTPUT INSERTED.DepartmentId VALUES (@name)')
+        .query('INSERT INTO portal.Departments (Name) VALUES (@name); SELECT CAST(SCOPE_IDENTITY() AS INT) AS DepartmentId;')
       departmentIdMap.set(dept.id, result.recordset[0].DepartmentId)
     }
 
     const employeeIdMap = new Map() // old static id -> new EmployeeId
     for (const emp of employees) {
+      // Same OUTPUT-vs-trigger restriction as the department insert above.
       const result = await new sql.Request(transaction)
         .input('employeeCode', sql.NVarChar(20), emp.employeeId || null)
         .input('name', sql.NVarChar(200), emp.name)
         .input('title', sql.NVarChar(200), emp.title || null)
         .query(
-          'INSERT INTO portal.Employees (EmployeeCode, Name, Title) OUTPUT INSERTED.EmployeeId VALUES (@employeeCode, @name, @title)',
+          'INSERT INTO portal.Employees (EmployeeCode, Name, Title) VALUES (@employeeCode, @name, @title); SELECT CAST(SCOPE_IDENTITY() AS INT) AS EmployeeId;',
         )
       employeeIdMap.set(emp.id, result.recordset[0].EmployeeId)
     }
