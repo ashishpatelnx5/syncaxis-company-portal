@@ -101,6 +101,24 @@ BEGIN
 END
 GO
 
+IF OBJECT_ID('portal.Holidays', 'U') IS NULL
+BEGIN
+    -- Financial year isn't stored — it's derived from HolidayDate (India's
+    -- FY runs April-March) both in the API and the frontend, so there's
+    -- never a mismatch between a holiday's date and which year it's grouped under.
+    CREATE TABLE portal.Holidays (
+        HolidayId      INT IDENTITY(1,1) NOT NULL,
+        HolidayDate    DATE              NOT NULL,
+        Name           NVARCHAR(200)     NOT NULL,
+        Type           NVARCHAR(20)      NOT NULL,
+        CreatedAt      DATETIME2         NOT NULL CONSTRAINT DF_Holidays_CreatedAt DEFAULT SYSUTCDATETIME(),
+        UpdatedAt      DATETIME2         NOT NULL CONSTRAINT DF_Holidays_UpdatedAt DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT PK_Holidays PRIMARY KEY (HolidayId),
+        CONSTRAINT CK_Holidays_Type CHECK (Type IN ('National', 'Festival'))
+    );
+END
+GO
+
 IF OBJECT_ID('portal.DailyPlans', 'U') IS NULL
 BEGIN
     CREATE TABLE portal.DailyPlans (
@@ -195,6 +213,10 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_DailyPlanSlots_DailyPl
     CREATE INDEX IX_DailyPlanSlots_DailyPlanId ON portal.DailyPlanSlots (DailyPlanId);
 GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Holidays_HolidayDate' AND object_id = OBJECT_ID('portal.Holidays'))
+    CREATE INDEX IX_Holidays_HolidayDate ON portal.Holidays (HolidayDate);
+GO
+
 -- ============================================================
 -- Triggers — keep UpdatedAt current without every caller remembering to set it
 -- ============================================================
@@ -246,6 +268,16 @@ BEGIN
     UPDATE p SET UpdatedAt = SYSUTCDATETIME()
     FROM portal.DailyPlans p
     JOIN inserted i ON i.DailyPlanId = p.DailyPlanId;
+END
+GO
+
+CREATE OR ALTER TRIGGER portal.TR_Holidays_UpdatedAt ON portal.Holidays
+AFTER UPDATE AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE h SET UpdatedAt = SYSUTCDATETIME()
+    FROM portal.Holidays h
+    JOIN inserted i ON i.HolidayId = h.HolidayId;
 END
 GO
 

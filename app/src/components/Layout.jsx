@@ -20,6 +20,7 @@ const navItems = [
       { to: '/admin/employees', label: 'Employees', icon: 'users' },
       { to: '/admin/departments', label: 'Departments', icon: 'building' },
       { to: '/admin/job-descriptions', label: 'Job Descriptions', icon: 'briefcase' },
+      { to: '/admin/holidays', label: 'Holidays', icon: 'calendar' },
       { to: '/admin/daily-plans', label: 'Team Daily Plans', icon: 'clipboard' },
     ],
   },

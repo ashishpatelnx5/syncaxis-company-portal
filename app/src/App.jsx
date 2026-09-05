@@ -10,6 +10,7 @@ import Directory from './pages/Directory'
 import EmployeeDetail from './pages/EmployeeDetail'
 import Hierarchy from './pages/Hierarchy'
 import Holidays from './pages/Holidays'
+import HolidaysAdmin from './pages/HolidaysAdmin'
 import JobDescriptionDetail from './pages/JobDescriptionDetail'
 import JobDescriptions from './pages/JobDescriptions'
 import JobDescriptionsAdmin from './pages/JobDescriptionsAdmin'
@@ -37,6 +38,7 @@ function App() {
             <Route path="departments" element={<Departments />} />
             <Route path="job-descriptions" element={<JobDescriptionsAdmin />} />
             <Route path="daily-plans" element={<TeamDailyPlans />} />
+            <Route path="holidays" element={<HolidaysAdmin />} />
           </Route>
         </Route>
       </Route>

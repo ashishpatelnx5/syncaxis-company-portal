@@ -7,6 +7,7 @@ import authRoutes from './routes/auth.js'
 import dailyPlansRoutes from './routes/dailyPlans.js'
 import departmentsRoutes from './routes/departments.js'
 import employeesRoutes from './routes/employees.js'
+import holidaysRoutes from './routes/holidays.js'
 import jobDescriptionsRoutes from './routes/jobDescriptions.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -24,6 +25,7 @@ app.use('/api/employees', employeesRoutes)
 app.use('/api/departments', departmentsRoutes)
 app.use('/api/job-descriptions', jobDescriptionsRoutes)
 app.use('/api/daily-plans', dailyPlansRoutes)
+app.use('/api/holidays', holidaysRoutes)
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found.' }))
 
 // Serves the built React app on this same port/process — run `npm run

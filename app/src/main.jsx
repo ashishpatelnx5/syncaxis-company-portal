@@ -6,6 +6,7 @@ import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 import { DepartmentsProvider } from './context/DepartmentsContext.jsx'
 import { EmployeesProvider } from './context/EmployeesContext.jsx'
+import { HolidaysProvider } from './context/HolidaysContext.jsx'
 import { JobDescriptionsProvider } from './context/JobDescriptionsContext.jsx'
 
 createRoot(document.getElementById('root')).render(
@@ -15,7 +16,9 @@ createRoot(document.getElementById('root')).render(
         <DepartmentsProvider>
           <JobDescriptionsProvider>
             <EmployeesProvider>
-              <App />
+              <HolidaysProvider>
+                <App />
+              </HolidaysProvider>
             </EmployeesProvider>
           </JobDescriptionsProvider>
         </DepartmentsProvider>
