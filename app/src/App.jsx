@@ -4,6 +4,8 @@ import RequireAuth from './components/RequireAuth'
 import Admin from './pages/Admin'
 import Home from './pages/Home'
 import Applications from './pages/Applications'
+import Complaints from './pages/Complaints'
+import ComplaintsAdmin from './pages/ComplaintsAdmin'
 import DailyPlan from './pages/DailyPlan'
 import Departments from './pages/Departments'
 import Directory from './pages/Directory'
@@ -32,6 +34,7 @@ function App() {
           <Route path="job-descriptions" element={<JobDescriptions />} />
           <Route path="job-descriptions/:id" element={<JobDescriptionDetail />} />
           <Route path="daily-plan" element={<DailyPlan />} />
+          <Route path="complaints" element={<Complaints />} />
           <Route path="admin">
             <Route index element={<Navigate to="employees" replace />} />
             <Route path="employees" element={<Admin />} />
@@ -39,6 +42,7 @@ function App() {
             <Route path="job-descriptions" element={<JobDescriptionsAdmin />} />
             <Route path="daily-plans" element={<TeamDailyPlans />} />
             <Route path="holidays" element={<HolidaysAdmin />} />
+            <Route path="complaints" element={<ComplaintsAdmin />} />
           </Route>
         </Route>
       </Route>

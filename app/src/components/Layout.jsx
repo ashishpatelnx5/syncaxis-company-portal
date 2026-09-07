@@ -12,6 +12,7 @@ const navItems = [
   { to: '/holidays', label: 'Holidays', icon: 'calendar' },
   { to: '/job-descriptions', label: 'Job Descriptions', icon: 'briefcase' },
   { to: '/daily-plan', label: 'Daily Plan', icon: 'clipboard' },
+  { to: '/complaints', label: 'Complaints & Feedback', icon: 'flag' },
   {
     label: 'Admin',
     icon: 'settings',
@@ -22,6 +23,7 @@ const navItems = [
       { to: '/admin/job-descriptions', label: 'Job Descriptions', icon: 'briefcase' },
       { to: '/admin/holidays', label: 'Holidays', icon: 'calendar' },
       { to: '/admin/daily-plans', label: 'Team Daily Plans', icon: 'clipboard' },
+      { to: '/admin/complaints', label: 'Complaints & Feedback', icon: 'flag' },
     ],
   },
 ]

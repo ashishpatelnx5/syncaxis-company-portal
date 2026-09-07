@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
+import { ComplaintsProvider } from './context/ComplaintsContext.jsx'
 import { DepartmentsProvider } from './context/DepartmentsContext.jsx'
 import { EmployeesProvider } from './context/EmployeesContext.jsx'
 import { HolidaysProvider } from './context/HolidaysContext.jsx'
@@ -17,7 +18,9 @@ createRoot(document.getElementById('root')).render(
           <JobDescriptionsProvider>
             <EmployeesProvider>
               <HolidaysProvider>
-                <App />
+                <ComplaintsProvider>
+                  <App />
+                </ComplaintsProvider>
               </HolidaysProvider>
             </EmployeesProvider>
           </JobDescriptionsProvider>

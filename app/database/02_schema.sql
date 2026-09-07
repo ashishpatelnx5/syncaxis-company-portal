@@ -119,6 +119,49 @@ BEGIN
 END
 GO
 
+IF OBJECT_ID('portal.Complaints', 'U') IS NULL
+BEGIN
+    -- Internal complaints/issues/feedback log. EmployeeId is nullable with
+    -- ON DELETE SET NULL — if the raiser's employee record is ever removed,
+    -- the entry itself is kept as a record, just unlinked from a person.
+    CREATE TABLE portal.Complaints (
+        ComplaintId    INT IDENTITY(1,1) NOT NULL,
+        EmployeeId     INT               NULL,
+        Category       NVARCHAR(20)      NOT NULL,
+        Subject        NVARCHAR(200)     NOT NULL,
+        Description    NVARCHAR(MAX)     NOT NULL,
+        Status         NVARCHAR(20)      NOT NULL CONSTRAINT DF_Complaints_Status DEFAULT 'Open',
+        CreatedAt      DATETIME2         NOT NULL CONSTRAINT DF_Complaints_CreatedAt DEFAULT SYSUTCDATETIME(),
+        UpdatedAt      DATETIME2         NOT NULL CONSTRAINT DF_Complaints_UpdatedAt DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT PK_Complaints PRIMARY KEY (ComplaintId),
+        CONSTRAINT FK_Complaints_Employee FOREIGN KEY (EmployeeId)
+            REFERENCES portal.Employees (EmployeeId) ON DELETE SET NULL,
+        CONSTRAINT CK_Complaints_Category CHECK (Category IN ('Complaint', 'Issue', 'Feedback')),
+        CONSTRAINT CK_Complaints_Status CHECK (Status IN ('Open', 'In Progress', 'Resolved', 'Closed'))
+    );
+END
+GO
+
+IF OBJECT_ID('portal.ComplaintHistory', 'U') IS NULL
+BEGIN
+    -- Append-only status timeline for a complaint — one row per status the
+    -- entry has ever been set to (including the initial 'Open' on
+    -- creation), each with an optional comment and a server-generated
+    -- timestamp. Never updated once written, so there's no UpdatedAt here.
+    CREATE TABLE portal.ComplaintHistory (
+        ComplaintHistoryId    INT IDENTITY(1,1) NOT NULL,
+        ComplaintId           INT               NOT NULL,
+        Status                NVARCHAR(20)      NOT NULL,
+        Comment               NVARCHAR(MAX)     NULL,
+        CreatedAt             DATETIME2         NOT NULL CONSTRAINT DF_ComplaintHistory_CreatedAt DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT PK_ComplaintHistory PRIMARY KEY (ComplaintHistoryId),
+        CONSTRAINT FK_ComplaintHistory_Complaint FOREIGN KEY (ComplaintId)
+            REFERENCES portal.Complaints (ComplaintId) ON DELETE CASCADE,
+        CONSTRAINT CK_ComplaintHistory_Status CHECK (Status IN ('Open', 'In Progress', 'Resolved', 'Closed'))
+    );
+END
+GO
+
 IF OBJECT_ID('portal.DailyPlans', 'U') IS NULL
 BEGIN
     CREATE TABLE portal.DailyPlans (
@@ -217,6 +260,18 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Holidays_HolidayDate' 
     CREATE INDEX IX_Holidays_HolidayDate ON portal.Holidays (HolidayDate);
 GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Complaints_EmployeeId' AND object_id = OBJECT_ID('portal.Complaints'))
+    CREATE INDEX IX_Complaints_EmployeeId ON portal.Complaints (EmployeeId);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Complaints_Status' AND object_id = OBJECT_ID('portal.Complaints'))
+    CREATE INDEX IX_Complaints_Status ON portal.Complaints (Status);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ComplaintHistory_ComplaintId' AND object_id = OBJECT_ID('portal.ComplaintHistory'))
+    CREATE INDEX IX_ComplaintHistory_ComplaintId ON portal.ComplaintHistory (ComplaintId);
+GO
+
 -- ============================================================
 -- Triggers — keep UpdatedAt current without every caller remembering to set it
 -- ============================================================
@@ -278,6 +333,16 @@ BEGIN
     UPDATE h SET UpdatedAt = SYSUTCDATETIME()
     FROM portal.Holidays h
     JOIN inserted i ON i.HolidayId = h.HolidayId;
+END
+GO
+
+CREATE OR ALTER TRIGGER portal.TR_Complaints_UpdatedAt ON portal.Complaints
+AFTER UPDATE AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE c SET UpdatedAt = SYSUTCDATETIME()
+    FROM portal.Complaints c
+    JOIN inserted i ON i.ComplaintId = c.ComplaintId;
 END
 GO
 

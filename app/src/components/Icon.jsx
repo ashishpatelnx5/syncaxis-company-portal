@@ -32,6 +32,7 @@ const paths = {
     'M4 8h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Zm5 0V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18',
   clipboard:
     'M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1ZM6 6h12a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Zm3 6h6M9 15h6M9 9h2',
+  flag: 'M5 21V4M5 4h13l-3 4.5L18 13H5',
 }
 
 export default function Icon({ name, size = 20, className = '' }) {

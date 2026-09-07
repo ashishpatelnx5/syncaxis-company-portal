@@ -3,8 +3,7 @@ import DailyPlanSheet from '../components/DailyPlanSheet'
 import MonthCalendar from '../components/MonthCalendar'
 import { useEmployees } from '../context/useEmployees'
 import { apiFetch } from '../utils/api'
-
-const WHOAMI_KEY = 'syncaxis-daily-plan-employee-id'
+import { getWhoAmI, setWhoAmI } from '../utils/whoAmI'
 
 function currentMonthKey() {
   const d = new Date()
@@ -13,13 +12,7 @@ function currentMonthKey() {
 
 export default function DailyPlan() {
   const { employees } = useEmployees()
-  const [employeeId, setEmployeeId] = useState(() => {
-    try {
-      return localStorage.getItem(WHOAMI_KEY) || ''
-    } catch {
-      return ''
-    }
-  })
+  const [employeeId, setEmployeeId] = useState(getWhoAmI)
   const [monthKey, setMonthKey] = useState(currentMonthKey)
   const [statusByDate, setStatusByDate] = useState({})
   const [selectedDate, setSelectedDate] = useState(null)
@@ -27,11 +20,7 @@ export default function DailyPlan() {
 
   function chooseEmployee(id) {
     setEmployeeId(id)
-    try {
-      localStorage.setItem(WHOAMI_KEY, id)
-    } catch {
-      // Storage unavailable — the picker just won't remember next time.
-    }
+    setWhoAmI(id)
   }
 
   useEffect(() => {

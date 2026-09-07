@@ -277,6 +277,22 @@ button, input, select {
   color: var(--accent);
 }
 
+.stat-card-button {
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+
+.stat-card-button:hover {
+  border-color: var(--accent);
+}
+
+.stat-card-active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
 .stat-value {
   font-size: 22px;
   font-weight: 700;
@@ -1004,6 +1020,162 @@ a.mini-person:hover .mini-name {
   color: var(--text-muted);
 }
 
+.badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-category-complaint {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+.badge-category-issue {
+  background: rgba(234, 179, 8, 0.15);
+  color: #a16207;
+}
+
+.badge-category-feedback {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.badge-status-open {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+.badge-status-in-progress {
+  background: rgba(234, 179, 8, 0.15);
+  color: #a16207;
+}
+
+.badge-status-resolved,
+.badge-status-closed {
+  background: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+}
+
+.complaint-whoami {
+  max-width: 220px;
+}
+
+.complaint-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.complaint-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px 18px;
+}
+
+.complaint-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.complaint-card-date {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.complaint-card-expandable {
+  cursor: pointer;
+}
+
+.complaint-card-expandable:hover {
+  border-color: var(--accent);
+}
+
+.complaint-card-chevron {
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.complaint-card-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.complaint-card-subject {
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+
+.complaint-card-description {
+  color: var(--text-muted);
+  font-size: 13.5px;
+  white-space: pre-wrap;
+}
+
+.complaint-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.complaint-card-author {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.complaint-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 10px 0 0 14px;
+  border-top: 1px solid var(--border);
+  border-left: 2px solid var(--border);
+}
+
+.complaint-timeline-item {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.complaint-timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -17px;
+  top: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.complaint-timeline-date {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.complaint-timeline-comment {
+  width: 100%;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
 .admin-row-actions {
   display: flex;
   gap: 4px;
@@ -1169,6 +1341,21 @@ a.mini-person:hover .mini-name {
 
 .form-field textarea {
   resize: vertical;
+  min-height: 72px;
+}
+
+.form-readonly-value {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 13.5px;
+}
+
+.form-readonly-value-block {
+  white-space: pre-wrap;
   min-height: 72px;
 }
 
