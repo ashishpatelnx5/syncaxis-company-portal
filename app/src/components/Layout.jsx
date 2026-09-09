@@ -3,6 +3,13 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import Icon from './Icon'
 import logo from '../assets/logo.png'
 import { useAuth } from '../context/useAuth'
+import { applyTheme, getStoredTheme, nextTheme } from '../utils/theme'
+
+const THEME_META = {
+  auto: { icon: 'monitor', label: 'Theme: matching your browser' },
+  light: { icon: 'sun', label: 'Theme: light' },
+  dark: { icon: 'moon', label: 'Theme: dark' },
+}
 
 const navItems = [
   { to: '/', label: 'Home', icon: 'home', end: true },
@@ -70,12 +77,19 @@ function NavGroup({ item, onNavigate }) {
 
 export default function Layout() {
   const [open, setOpen] = useState(false)
+  const [theme, setTheme] = useState(getStoredTheme)
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
   function handleLogout() {
     logout()
     navigate('/login', { replace: true })
+  }
+
+  function cycleTheme() {
+    const next = nextTheme(theme)
+    applyTheme(next)
+    setTheme(next)
   }
 
   return (
@@ -98,9 +112,20 @@ export default function Layout() {
             <Icon name="user" size={14} />
             {user?.username}
           </span>
-          <button type="button" className="icon-btn" onClick={handleLogout} aria-label="Log out">
-            <Icon name="logout" size={15} />
-          </button>
+          <span className="sidebar-user-actions">
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={cycleTheme}
+              aria-label={THEME_META[theme].label}
+              title={THEME_META[theme].label}
+            >
+              <Icon name={THEME_META[theme].icon} size={15} />
+            </button>
+            <button type="button" className="icon-btn" onClick={handleLogout} aria-label="Log out">
+              <Icon name="logout" size={15} />
+            </button>
+          </span>
         </div>
         <nav className="nav">
           {navItems.map((item) =>
