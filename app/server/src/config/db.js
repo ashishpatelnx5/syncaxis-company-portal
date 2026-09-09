@@ -1,10 +1,13 @@
 import sql from 'mssql'
 import { env } from './env.js'
 
-// `DB_SERVER` may be `HOST` or `HOST\INSTANCE` (a named instance, e.g. the
-// default SQL Server Express setup). tedious wants the instance name split
-// out into options.instanceName rather than embedded in the server string.
-const [host, instanceName] = env.db.server.split('\\')
+// `DB_SERVER` may be `HOST`, `HOST\INSTANCE` (a named instance, e.g. the
+// default SQL Server Express setup — needs SQL Server Browser running to
+// resolve), or `HOST,PORT` (connect straight to a fixed TCP port, no
+// Browser service needed). tedious wants the instance name and port split
+// out into their own config fields rather than embedded in the server string.
+const [hostAndPort, instanceName] = env.db.server.split('\\')
+const [host, port] = hostAndPort.split(',')
 
 const config = {
   server: host,
@@ -16,6 +19,7 @@ const config = {
     trustServerCertificate: env.db.trustServerCertificate,
     ...(instanceName ? { instanceName } : {}),
   },
+  ...(port ? { port: Number(port) } : {}),
 }
 
 let poolPromise
