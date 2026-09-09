@@ -7,18 +7,17 @@ import { useEmployees } from '../context/useEmployees'
 const CATEGORIES = ['Complaint', 'Issue', 'Feedback']
 const STATUSES = ['Open', 'In Progress', 'Resolved', 'Closed']
 
-// showAdminFields: lets you reassign the employee and edit everything —
-// only the Admin page passes this. On the public page, an employee can
-// fill in Category/Subject/Description when submitting a new entry, but
-// once it exists, editing it is limited to Status + a note — the original
-// report itself can't be rewritten after the fact. Only Admin can change
-// Raised by/Category/Subject/Description on an existing entry, or delete one.
+// showAdminFields: lets you reassign the employee ("Raised by") — only the
+// Admin page passes this. Category/Subject/Description/Status are editable
+// either way. On the public page, the Edit button is only ever shown on an
+// employee's own entries (see Complaints.jsx), so a non-admin editing here
+// is always editing their own submission, never someone else's. Only Admin
+// can reassign Raised by or delete an entry.
 export default function ComplaintForm({ complaint, employeeId, showAdminFields = false, onClose }) {
   const { addComplaint, updateComplaint } = useComplaints()
   const { employees } = useEmployees()
   const isNew = complaint == null
   const sortedEmployees = employees.slice().sort((a, b) => a.name.localeCompare(b.name))
-  const canEditContent = isNew || showAdminFields
   const showStatusField = showAdminFields || !isNew
 
   const [form, setForm] = useState(() => ({
@@ -92,17 +91,13 @@ export default function ComplaintForm({ complaint, employeeId, showAdminFields =
           <div className="form-row">
             <label className="form-field">
               <span>Category *</span>
-              {canEditContent ? (
-                <select value={form.category} onChange={(e) => set('category', e.target.value)}>
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <p className="form-readonly-value">{form.category}</p>
-              )}
+              <select value={form.category} onChange={(e) => set('category', e.target.value)}>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
             </label>
             {showStatusField && (
               <label className="form-field">
@@ -134,20 +129,12 @@ export default function ComplaintForm({ complaint, employeeId, showAdminFields =
 
           <label className="form-field">
             <span>Subject *</span>
-            {canEditContent ? (
-              <input value={form.subject} onChange={(e) => set('subject', e.target.value)} required autoFocus />
-            ) : (
-              <p className="form-readonly-value">{form.subject}</p>
-            )}
+            <input value={form.subject} onChange={(e) => set('subject', e.target.value)} required autoFocus />
           </label>
 
           <label className="form-field">
             <span>Description *</span>
-            {canEditContent ? (
-              <textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={5} required />
-            ) : (
-              <p className="form-readonly-value form-readonly-value-block">{form.description}</p>
-            )}
+            <textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={5} required />
           </label>
 
           {!isNew && complaint.history?.length > 0 && (

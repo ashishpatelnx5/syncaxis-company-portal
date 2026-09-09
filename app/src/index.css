@@ -1344,21 +1344,6 @@ a.mini-person:hover .mini-name {
   min-height: 72px;
 }
 
-.form-readonly-value {
-  margin: 0;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-2);
-  color: var(--text-muted);
-  font-size: 13.5px;
-}
-
-.form-readonly-value-block {
-  white-space: pre-wrap;
-  min-height: 72px;
-}
-
 .form-field input:focus,
 .form-field select:focus,
 .form-field textarea:focus {
