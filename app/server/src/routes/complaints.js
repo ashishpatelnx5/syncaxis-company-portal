@@ -1,9 +1,14 @@
 import { Router } from 'express'
 import { getPool, sql } from '../config/db.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAnyPermission, requireAuth } from '../middleware/auth.js'
 
 const router = Router()
 router.use(requireAuth)
+// Viewing/submitting/editing is available to anyone with either the regular
+// Complaints page or the Admin Complaints page; only the admin page can
+// delete an entry outright.
+const requireComplaints = requireAnyPermission(['page', 'complaints'], ['page', 'admin-complaints'])
+const requireAdminComplaints = requireAnyPermission(['page', 'admin-complaints'])
 
 const CATEGORIES = ['Complaint', 'Issue', 'Feedback']
 const STATUSES = ['Open', 'In Progress', 'Resolved', 'Closed']
@@ -39,7 +44,7 @@ async function fetchHistoryByComplaint(pool) {
   return map
 }
 
-router.get('/', async (req, res, next) => {
+router.get('/', requireComplaints, async (req, res, next) => {
   try {
     const pool = await getPool()
     const [complaintsResult, historyByComplaint] = await Promise.all([
@@ -57,7 +62,7 @@ router.get('/', async (req, res, next) => {
   }
 })
 
-router.post('/', async (req, res, next) => {
+router.post('/', requireComplaints, async (req, res, next) => {
   const pool = await getPool()
   const transaction = new sql.Transaction(pool)
   try {
@@ -107,7 +112,7 @@ router.post('/', async (req, res, next) => {
   }
 })
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', requireComplaints, async (req, res, next) => {
   const pool = await getPool()
   const transaction = new sql.Transaction(pool)
   try {
@@ -178,7 +183,7 @@ router.put('/:id', async (req, res, next) => {
   }
 })
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', requireAdminComplaints, async (req, res, next) => {
   try {
     const pool = await getPool()
     // ON DELETE CASCADE on ComplaintHistory removes its timeline as part of

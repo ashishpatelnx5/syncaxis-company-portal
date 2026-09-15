@@ -1,9 +1,10 @@
 import { Router } from 'express'
 import { getPool, sql } from '../config/db.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, requirePermission } from '../middleware/auth.js'
 
 const router = Router()
 router.use(requireAuth)
+const requireAdminHolidays = requirePermission('page', 'admin-holidays')
 
 function toHoliday(row) {
   return {
@@ -24,7 +25,7 @@ router.get('/', async (req, res, next) => {
   }
 })
 
-router.post('/', async (req, res, next) => {
+router.post('/', requireAdminHolidays, async (req, res, next) => {
   try {
     const body = req.body || {}
     const name = (body.name || '').trim()
@@ -58,7 +59,7 @@ router.post('/', async (req, res, next) => {
   }
 })
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', requireAdminHolidays, async (req, res, next) => {
   try {
     const body = req.body || {}
     const name = (body.name || '').trim()
@@ -90,7 +91,7 @@ router.put('/:id', async (req, res, next) => {
   }
 })
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', requireAdminHolidays, async (req, res, next) => {
   try {
     const pool = await getPool()
     const result = await pool

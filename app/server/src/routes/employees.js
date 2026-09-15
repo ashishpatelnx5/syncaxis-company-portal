@@ -1,11 +1,12 @@
 import { Router } from 'express'
 import { getPool, sql } from '../config/db.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, requirePermission } from '../middleware/auth.js'
 
 const router = Router()
 router.use(requireAuth)
+const requireAdminEmployees = requirePermission('page', 'admin-employees')
 
-function toEmployee(row, departmentIdsByEmployee) {
+export function toEmployee(row, departmentIdsByEmployee) {
   return {
     id: row.EmployeeId,
     employeeId: row.EmployeeCode || '',
@@ -32,7 +33,7 @@ function normalizeCode(employeeId) {
   return trimmed || null
 }
 
-async function fetchDepartmentIdsByEmployee(pool) {
+export async function fetchDepartmentIdsByEmployee(pool) {
   const result = await pool.request().query('SELECT EmployeeId, DepartmentId FROM portal.EmployeeDepartments')
   const map = new Map()
   for (const row of result.recordset) {
@@ -66,7 +67,7 @@ router.get('/', async (req, res, next) => {
   }
 })
 
-router.post('/', async (req, res, next) => {
+router.post('/', requireAdminEmployees, async (req, res, next) => {
   const pool = await getPool()
   const transaction = new sql.Transaction(pool)
   try {
@@ -111,7 +112,7 @@ router.post('/', async (req, res, next) => {
   }
 })
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', requireAdminEmployees, async (req, res, next) => {
   const pool = await getPool()
   const transaction = new sql.Transaction(pool)
   try {
@@ -162,7 +163,7 @@ router.put('/:id', async (req, res, next) => {
   }
 })
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', requireAdminEmployees, async (req, res, next) => {
   const pool = await getPool()
   const transaction = new sql.Transaction(pool)
   try {
@@ -194,7 +195,7 @@ router.delete('/:id', async (req, res, next) => {
 // reportIds gets ManagerId set to this employee, anyone currently reporting
 // to them but left out of reportIds gets cleared. Mirrors the old
 // client-side setDirectReports() the Admin UI already expects.
-router.put('/:id/reports', async (req, res, next) => {
+router.put('/:id/reports', requireAdminEmployees, async (req, res, next) => {
   const pool = await getPool()
   const transaction = new sql.Transaction(pool)
   try {

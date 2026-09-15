@@ -1,9 +1,10 @@
 import { Router } from 'express'
 import { getPool, sql } from '../config/db.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, requirePermission } from '../middleware/auth.js'
 
 const router = Router()
 router.use(requireAuth)
+const requireAdminJobDescriptions = requirePermission('page', 'admin-job-descriptions')
 
 function toJobDescription(row) {
   return {
@@ -25,7 +26,7 @@ router.get('/', async (req, res, next) => {
   }
 })
 
-router.post('/', async (req, res, next) => {
+router.post('/', requireAdminJobDescriptions, async (req, res, next) => {
   try {
     const body = req.body || {}
     const title = (body.title || '').trim()
@@ -60,7 +61,7 @@ router.post('/', async (req, res, next) => {
   }
 })
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', requireAdminJobDescriptions, async (req, res, next) => {
   try {
     const body = req.body || {}
     const title = (body.title || '').trim()
@@ -97,7 +98,7 @@ router.put('/:id', async (req, res, next) => {
   }
 })
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', requireAdminJobDescriptions, async (req, res, next) => {
   try {
     const pool = await getPool()
     // ON DELETE SET NULL on Employees.JobDescriptionId unassigns anyone who

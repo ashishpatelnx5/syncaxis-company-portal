@@ -205,17 +205,136 @@ GO
 IF OBJECT_ID('portal.Users', 'U') IS NULL
 BEGIN
     CREATE TABLE portal.Users (
-        UserId          INT IDENTITY(1,1) NOT NULL,
-        Username        NVARCHAR(100)      NOT NULL,
-        PasswordHash    NVARCHAR(255)      NOT NULL,
-        DisplayName     NVARCHAR(200)       NULL,
-        Role            NVARCHAR(50)       NOT NULL CONSTRAINT DF_Users_Role DEFAULT 'admin',
-        IsActive        BIT                NOT NULL CONSTRAINT DF_Users_IsActive DEFAULT 1,
-        LastLoginAt     DATETIME2           NULL,
-        CreatedAt       DATETIME2          NOT NULL CONSTRAINT DF_Users_CreatedAt DEFAULT SYSUTCDATETIME(),
-        UpdatedAt       DATETIME2          NOT NULL CONSTRAINT DF_Users_UpdatedAt DEFAULT SYSUTCDATETIME(),
+        UserId              INT IDENTITY(1,1) NOT NULL,
+        Username            NVARCHAR(100)      NOT NULL,
+        PasswordHash        NVARCHAR(255)      NOT NULL,
+        DisplayName         NVARCHAR(200)       NULL,
+        IsActive            BIT                NOT NULL CONSTRAINT DF_Users_IsActive DEFAULT 1,
+        FailedLoginCount    INT                NOT NULL CONSTRAINT DF_Users_FailedLoginCount DEFAULT 0,
+        IsLocked            BIT                NOT NULL CONSTRAINT DF_Users_IsLocked DEFAULT 0,
+        LastLoginAt         DATETIME2           NULL,
+        -- Set by the app whenever PasswordHash is written (account
+        -- creation, an admin's reset, or the user's own change-password) —
+        -- powers the "password last changed" line on My Account.
+        PasswordChangedAt   DATETIME2           NULL,
+        -- The employee record this login belongs to, if any (not every
+        -- login needs one — a pure admin/service account can stay
+        -- unlinked). Powers the self-service "My Profile" page. ON DELETE
+        -- SET NULL: removing the employee record unlinks the login instead
+        -- of deleting the account.
+        EmployeeId          INT                 NULL,
+        CreatedAt           DATETIME2          NOT NULL CONSTRAINT DF_Users_CreatedAt DEFAULT SYSUTCDATETIME(),
+        UpdatedAt           DATETIME2          NOT NULL CONSTRAINT DF_Users_UpdatedAt DEFAULT SYSUTCDATETIME(),
         CONSTRAINT PK_Users PRIMARY KEY (UserId),
-        CONSTRAINT UQ_Users_Username UNIQUE (Username)
+        CONSTRAINT UQ_Users_Username UNIQUE (Username),
+        CONSTRAINT FK_Users_Employee FOREIGN KEY (EmployeeId) REFERENCES portal.Employees (EmployeeId) ON DELETE SET NULL
+    );
+END
+GO
+
+-- ============================================================
+-- RBAC — Roles, Role permissions, User Groups, and the mappings between
+-- them. A user's effective access is the union of permissions from every
+-- role assigned directly to them (UserRoles) plus every role assigned to
+-- any group they belong to (UserGroupMembers + GroupRoles). The seeded
+-- 'Admin' role has IsFullAccess = 1, bypassing permission checks entirely
+-- rather than being granted individual pages/applications, and IsProtected
+-- = 1, which blocks deleting it or ever clearing IsFullAccess. The set of
+-- valid ResourceKey values is defined once in the frontend
+-- (src/data/permissions.js, src/data/apps.js), not a database lookup
+-- table — same pattern as portal.DailyPlanSlots.SlotIndex above.
+-- ============================================================
+
+IF OBJECT_ID('portal.Roles', 'U') IS NULL
+BEGIN
+    CREATE TABLE portal.Roles (
+        RoleId          INT IDENTITY(1,1) NOT NULL,
+        Name            NVARCHAR(100)     NOT NULL,
+        Description     NVARCHAR(500)      NULL,
+        IsFullAccess    BIT               NOT NULL CONSTRAINT DF_Roles_IsFullAccess DEFAULT 0,
+        IsProtected     BIT               NOT NULL CONSTRAINT DF_Roles_IsProtected DEFAULT 0,
+        CreatedAt       DATETIME2         NOT NULL CONSTRAINT DF_Roles_CreatedAt DEFAULT SYSUTCDATETIME(),
+        UpdatedAt       DATETIME2         NOT NULL CONSTRAINT DF_Roles_UpdatedAt DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT PK_Roles PRIMARY KEY (RoleId),
+        CONSTRAINT UQ_Roles_Name UNIQUE (Name)
+    );
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM portal.Roles WHERE Name = 'Admin')
+    INSERT INTO portal.Roles (Name, Description, IsFullAccess, IsProtected)
+    VALUES ('Admin', 'Unconditional full access to every page and application.', 1, 1);
+GO
+
+IF OBJECT_ID('portal.RolePermissions', 'U') IS NULL
+BEGIN
+    CREATE TABLE portal.RolePermissions (
+        RolePermissionId    INT IDENTITY(1,1) NOT NULL,
+        RoleId              INT               NOT NULL,
+        ResourceType        NVARCHAR(20)      NOT NULL,
+        ResourceKey         NVARCHAR(50)      NOT NULL,
+        CreatedAt           DATETIME2         NOT NULL CONSTRAINT DF_RolePermissions_CreatedAt DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT PK_RolePermissions PRIMARY KEY (RolePermissionId),
+        CONSTRAINT UQ_RolePermissions UNIQUE (RoleId, ResourceType, ResourceKey),
+        CONSTRAINT FK_RolePermissions_Role FOREIGN KEY (RoleId)
+            REFERENCES portal.Roles (RoleId) ON DELETE CASCADE,
+        CONSTRAINT CK_RolePermissions_ResourceType CHECK (ResourceType IN ('page', 'application'))
+    );
+END
+GO
+
+IF OBJECT_ID('portal.UserGroups', 'U') IS NULL
+BEGIN
+    CREATE TABLE portal.UserGroups (
+        GroupId         INT IDENTITY(1,1) NOT NULL,
+        Name            NVARCHAR(100)     NOT NULL,
+        Description     NVARCHAR(500)      NULL,
+        CreatedAt       DATETIME2         NOT NULL CONSTRAINT DF_UserGroups_CreatedAt DEFAULT SYSUTCDATETIME(),
+        UpdatedAt       DATETIME2         NOT NULL CONSTRAINT DF_UserGroups_UpdatedAt DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT PK_UserGroups PRIMARY KEY (GroupId),
+        CONSTRAINT UQ_UserGroups_Name UNIQUE (Name)
+    );
+END
+GO
+
+IF OBJECT_ID('portal.UserGroupMembers', 'U') IS NULL
+BEGIN
+    CREATE TABLE portal.UserGroupMembers (
+        UserId      INT NOT NULL,
+        GroupId     INT NOT NULL,
+        CONSTRAINT PK_UserGroupMembers PRIMARY KEY (UserId, GroupId),
+        CONSTRAINT FK_UserGroupMembers_User FOREIGN KEY (UserId)
+            REFERENCES portal.Users (UserId) ON DELETE CASCADE,
+        CONSTRAINT FK_UserGroupMembers_Group FOREIGN KEY (GroupId)
+            REFERENCES portal.UserGroups (GroupId) ON DELETE CASCADE
+    );
+END
+GO
+
+IF OBJECT_ID('portal.UserRoles', 'U') IS NULL
+BEGIN
+    CREATE TABLE portal.UserRoles (
+        UserId      INT NOT NULL,
+        RoleId      INT NOT NULL,
+        CONSTRAINT PK_UserRoles PRIMARY KEY (UserId, RoleId),
+        CONSTRAINT FK_UserRoles_User FOREIGN KEY (UserId)
+            REFERENCES portal.Users (UserId) ON DELETE CASCADE,
+        CONSTRAINT FK_UserRoles_Role FOREIGN KEY (RoleId)
+            REFERENCES portal.Roles (RoleId) ON DELETE CASCADE
+    );
+END
+GO
+
+IF OBJECT_ID('portal.GroupRoles', 'U') IS NULL
+BEGIN
+    CREATE TABLE portal.GroupRoles (
+        GroupId     INT NOT NULL,
+        RoleId      INT NOT NULL,
+        CONSTRAINT PK_GroupRoles PRIMARY KEY (GroupId, RoleId),
+        CONSTRAINT FK_GroupRoles_Group FOREIGN KEY (GroupId)
+            REFERENCES portal.UserGroups (GroupId) ON DELETE CASCADE,
+        CONSTRAINT FK_GroupRoles_Role FOREIGN KEY (RoleId)
+            REFERENCES portal.Roles (RoleId) ON DELETE CASCADE
     );
 END
 GO
@@ -223,6 +342,10 @@ GO
 -- ============================================================
 -- Indexes
 -- ============================================================
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Users_EmployeeId' AND object_id = OBJECT_ID('portal.Users'))
+    CREATE INDEX IX_Users_EmployeeId ON portal.Users (EmployeeId);
+GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Employees_ManagerId' AND object_id = OBJECT_ID('portal.Employees'))
     CREATE INDEX IX_Employees_ManagerId ON portal.Employees (ManagerId);
@@ -270,6 +393,22 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ComplaintHistory_ComplaintId' AND object_id = OBJECT_ID('portal.ComplaintHistory'))
     CREATE INDEX IX_ComplaintHistory_ComplaintId ON portal.ComplaintHistory (ComplaintId);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_UserGroupMembers_GroupId' AND object_id = OBJECT_ID('portal.UserGroupMembers'))
+    CREATE INDEX IX_UserGroupMembers_GroupId ON portal.UserGroupMembers (GroupId);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_UserRoles_RoleId' AND object_id = OBJECT_ID('portal.UserRoles'))
+    CREATE INDEX IX_UserRoles_RoleId ON portal.UserRoles (RoleId);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_GroupRoles_RoleId' AND object_id = OBJECT_ID('portal.GroupRoles'))
+    CREATE INDEX IX_GroupRoles_RoleId ON portal.GroupRoles (RoleId);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_RolePermissions_RoleId' AND object_id = OBJECT_ID('portal.RolePermissions'))
+    CREATE INDEX IX_RolePermissions_RoleId ON portal.RolePermissions (RoleId);
 GO
 
 -- ============================================================

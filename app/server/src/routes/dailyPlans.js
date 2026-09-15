@@ -1,9 +1,11 @@
 import { Router } from 'express'
 import { getPool, sql } from '../config/db.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, requirePermission } from '../middleware/auth.js'
 
 const router = Router()
 router.use(requireAuth)
+const requireDailyPlan = requirePermission('page', 'daily-plan')
+const requireAdminDailyPlans = requirePermission('page', 'admin-daily-plans')
 
 function toSlot(row) {
   return {
@@ -25,7 +27,7 @@ function dateOnly(date) {
 // This employee's daily plans (with slots) for one calendar month — powers
 // the personal month-grid calendar. Only days with a saved plan come back;
 // the frontend treats every other day in the month as blank.
-router.get('/', async (req, res, next) => {
+router.get('/', requireDailyPlan, async (req, res, next) => {
   try {
     const employeeId = Number(req.query.employeeId)
     const month = req.query.month // 'YYYY-MM'
@@ -72,7 +74,7 @@ router.get('/', async (req, res, next) => {
 
 // Lightweight per-employee-per-day status for the whole team over one
 // month — no slot detail — powers the admin oversight matrix.
-router.get('/team-summary', async (req, res, next) => {
+router.get('/team-summary', requireAdminDailyPlans, async (req, res, next) => {
   try {
     const month = req.query.month
     if (!/^\d{4}-\d{2}$/.test(month || '')) {
@@ -103,7 +105,7 @@ router.get('/team-summary', async (req, res, next) => {
 // One employee's one day, in full (with slots). A day nobody has filled in
 // yet is a normal, expected state here — not an error — so this returns a
 // blank sheet (200, empty slots) rather than 404.
-router.get('/:employeeId/:date', async (req, res, next) => {
+router.get('/:employeeId/:date', requireDailyPlan, async (req, res, next) => {
   try {
     const employeeId = Number(req.params.employeeId)
     const { date } = req.params
@@ -139,7 +141,7 @@ router.get('/:employeeId/:date', async (req, res, next) => {
 // Upsert: replaces this employee's whole sheet for this day in one call —
 // simpler than diffing individual slots, and the form always submits the
 // complete set of 8 slots anyway.
-router.put('/:employeeId/:date', async (req, res, next) => {
+router.put('/:employeeId/:date', requireDailyPlan, async (req, res, next) => {
   const pool = await getPool()
   const transaction = new sql.Transaction(pool)
   try {

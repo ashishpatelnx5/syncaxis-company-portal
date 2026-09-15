@@ -121,6 +121,7 @@ button, input, select {
   display: flex;
   align-items: center;
   padding: 18px 20px;
+  cursor: pointer;
 }
 
 .brand-logo {
@@ -148,6 +149,13 @@ button, input, select {
   flex-direction: column;
   gap: 2px;
   padding: 8px 12px;
+  /* Brand/user-info above and the footer below stay fixed; this is the only
+     part of the sidebar that scrolls once expanded groups push it past the
+     viewport. min-height: 0 overrides the flex-item default of "auto",
+     which would otherwise force the sidebar to grow instead of scrolling. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .nav-link {
@@ -161,16 +169,35 @@ button, input, select {
   font-size: 14px;
 }
 
-.nav-group-toggle {
-  width: 100%;
+/* A group can be a plain toggle (Admin — no page of its own) or a clickable
+   label plus a separate chevron toggle (Organisation — also a real page).
+   Both live in this one flex row so the label can be a <button> or a
+   <NavLink> without changing the layout. */
+.nav-group-header {
+  display: flex;
+  align-items: center;
+}
+
+.nav-group-link {
+  flex: 1;
+  min-width: 0;
   border: none;
   background: none;
   text-align: left;
   cursor: pointer;
 }
 
+.nav-group-chevron-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  padding: 9px 12px 9px 4px;
+}
+
 .nav-group-chevron {
-  margin-left: auto;
   transition: transform 0.15s ease;
 }
 
@@ -234,6 +261,17 @@ button, input, select {
   font-size: 12.5px;
   font-weight: 600;
   color: var(--text);
+  text-decoration: none;
+}
+
+.sidebar-last-login {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.sidebar-user:hover {
+  color: var(--accent);
 }
 
 .sidebar-tagline {
@@ -274,6 +312,33 @@ button, input, select {
   gap: 28px;
 }
 
+.tab-strip {
+  max-width: 1100px;
+  margin: 0 auto 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-link {
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.tab-link:hover {
+  color: var(--text);
+}
+
+.tab-link.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
 .page-header h1 {
   font-size: 26px;
 }
@@ -299,6 +364,15 @@ button, input, select {
   font-size: 13px;
   color: var(--accent);
   font-weight: 500;
+}
+
+.contact-emergency-toggle {
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* Stats */
@@ -648,10 +722,6 @@ button, input, select {
   padding: 0;
 }
 
-.mini-org-tree li > ul {
-  padding-left: 22px;
-}
-
 .mini-org-tree li::before,
 .mini-org-tree li::after {
   content: '';
@@ -687,42 +757,32 @@ button, input, select {
 
 .mini-person {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
   text-decoration: none;
   color: inherit;
-  max-width: 110px;
-}
-
-.mini-name {
-  font-size: 11.5px;
-  font-weight: 500;
-  color: var(--accent);
-  text-align: center;
-  line-height: 1.25;
-}
-
-a.mini-person:hover .mini-name {
-  text-decoration: underline;
-}
-
-.mini-person-self .mini-name {
-  font-weight: 700;
-  color: var(--text);
 }
 
 .mini-avatar {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   flex-shrink: 0;
+  transition: box-shadow 0.12s ease;
+}
+
+a.mini-person:hover .mini-avatar {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* No name label to make "you" bold anymore — a ring around the avatar
+   itself does the job instead. */
+.mini-avatar-self {
+  box-shadow: 0 0 0 2px var(--text);
 }
 
 .detail-grid {
@@ -750,6 +810,11 @@ a.mini-person:hover .mini-name {
   grid-template-columns: auto 1fr;
   gap: 8px 14px;
   font-size: 13.5px;
+  /* Without this, a grid's implicit rows stretch to fill any extra height
+     from a taller sibling (e.g. the 3-row Emergency Contact list next to
+     this 2-row Email/Phone one in .contact-body) — pinning rows to the top
+     keeps Email/Phone at a fixed position regardless of what's beside it. */
+  align-content: start;
 }
 
 .detail-list dt {
@@ -769,10 +834,39 @@ a.mini-person:hover .mini-name {
   text-decoration: underline;
 }
 
-/* Org chart */
-.org-chart-scroll {
-  overflow-x: auto;
-  padding-bottom: 12px;
+/* Contact card body — a plain single .detail-list until Emergency Contact
+   is toggled open, then a second .detail-list sits to its right with a
+   vertical rule between them (see pages/Home.jsx). */
+.contact-body {
+  display: flex;
+  align-items: stretch;
+  gap: 20px;
+}
+
+.contact-body .detail-list {
+  flex: 1;
+}
+
+.contact-divider {
+  width: 1px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* Org chart — scaled via JS (see pages/Hierarchy.jsx) to fit the available
+   viewport space exactly, so the chart never needs its own scrollbar. */
+.org-chart-fit {
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+}
+
+.org-chart-scale {
+  transform-origin: top center;
+  /* Always report its true natural (max-content) size to the JS that
+     measures it — scaling to fit is handled entirely by the transform,
+     not by the flex layout shrinking this item. */
+  flex-shrink: 0;
 }
 
 .org-tree, .org-tree ul {
@@ -931,6 +1025,19 @@ a.mini-person:hover .mini-name {
 
 .org-toggle .icon.rotated {
   transform: rotate(90deg);
+}
+
+/* .org-avatar's negative margin-bottom and .org-toggle's negative
+   margin-top exist to overlap them onto .org-card above/below — with no
+   card in compact mode (see components/OrgNode.jsx), those would instead
+   overlap the toggle badge onto the avatar itself. Reset to a small
+   positive gap instead. */
+.org-node-compact .org-avatar {
+  margin-bottom: 0;
+}
+
+.org-node-compact .org-toggle {
+  margin-top: 6px;
 }
 
 /* Detail page toolbar */

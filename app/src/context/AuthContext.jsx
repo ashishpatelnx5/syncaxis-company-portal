@@ -23,9 +23,21 @@ export function AuthProvider({ children }) {
       user,
       isAuthenticated: user != null,
       isLoading,
+      // isAdmin (any assigned role with IsFullAccess, see server) has
+      // unconditional full access; otherwise access is whatever pages/
+      // applications the user's role(s) — direct or via a group — grant.
+      hasPage: (key) => user?.isAdmin || Boolean(user?.permissions?.pages?.includes(key)),
+      hasApp: (key) => user?.isAdmin || Boolean(user?.permissions?.applications?.includes(key)),
       async login(username, password) {
         const data = await apiFetch('/api/auth/login', { method: 'POST', body: { username, password }, auth: false })
         setToken(data.token)
+        setUser(data.user)
+      },
+      // Re-fetches the signed-in user's own record — e.g. after changing
+      // your password, so a field like "last changed" reflects it right
+      // away instead of waiting for the next login/page load.
+      async refreshUser() {
+        const data = await apiFetch('/api/auth/me')
         setUser(data.user)
       },
       logout() {

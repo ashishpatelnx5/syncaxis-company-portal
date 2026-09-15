@@ -1,9 +1,10 @@
 import { Router } from 'express'
 import { getPool, sql } from '../config/db.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, requirePermission } from '../middleware/auth.js'
 
 const router = Router()
 router.use(requireAuth)
+const requireAdminDepartments = requirePermission('page', 'admin-departments')
 
 function toDepartment(row) {
   return { id: row.DepartmentId, name: row.Name }
@@ -19,7 +20,7 @@ router.get('/', async (req, res, next) => {
   }
 })
 
-router.post('/', async (req, res, next) => {
+router.post('/', requireAdminDepartments, async (req, res, next) => {
   try {
     const name = (req.body?.name || '').trim()
     if (!name) return res.status(400).json({ error: 'Name is required.' })
@@ -45,7 +46,7 @@ router.post('/', async (req, res, next) => {
   }
 })
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', requireAdminDepartments, async (req, res, next) => {
   try {
     const name = (req.body?.name || '').trim()
     if (!name) return res.status(400).json({ error: 'Name is required.' })
@@ -73,7 +74,7 @@ router.put('/:id', async (req, res, next) => {
   }
 })
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', requireAdminDepartments, async (req, res, next) => {
   try {
     const pool = await getPool()
     // ON DELETE CASCADE on EmployeeDepartments strips this department out of

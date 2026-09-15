@@ -10,6 +10,10 @@ import departmentsRoutes from './routes/departments.js'
 import employeesRoutes from './routes/employees.js'
 import holidaysRoutes from './routes/holidays.js'
 import jobDescriptionsRoutes from './routes/jobDescriptions.js'
+import meRoutes from './routes/me.js'
+import rolesRoutes from './routes/roles.js'
+import userGroupsRoutes from './routes/userGroups.js'
+import usersRoutes from './routes/users.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // The frontend's build output — one level up from server/, in app/.
@@ -28,6 +32,10 @@ app.use('/api/job-descriptions', jobDescriptionsRoutes)
 app.use('/api/daily-plans', dailyPlansRoutes)
 app.use('/api/holidays', holidaysRoutes)
 app.use('/api/complaints', complaintsRoutes)
+app.use('/api/users', usersRoutes)
+app.use('/api/roles', rolesRoutes)
+app.use('/api/user-groups', userGroupsRoutes)
+app.use('/api/me', meRoutes)
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found.' }))
 
 // Serves the built React app on this same port/process — run `npm run

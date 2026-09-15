@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import Avatar from '../components/Avatar'
+import ContactPanel from '../components/ContactPanel'
 import Icon from '../components/Icon'
 import MiniOrgTree from '../components/MiniOrgTree'
 import PhotoLightbox from '../components/PhotoLightbox'
@@ -20,14 +21,12 @@ export default function EmployeeDetail() {
   // Wait for the fetch to finish before deciding this id doesn't exist — on
   // a fresh page load (a bookmarked link, a refresh) the list starts empty.
   if (isLoading) return null
-  if (!employee) return <Navigate to="/directory" replace />
+  if (!employee) return <Navigate to="/organisation/directory" replace />
 
   const jobDescription = jobDescriptions.find((jd) => jd.id === employee.jobDescriptionId)
 
   const chain = getAncestorChain(employees, employee.id)
   const reports = getDirectReports(employees, employee.id)
-  const emergency = employee.emergencyContact ?? {}
-  const hasEmergencyContact = emergency.name || emergency.relation || emergency.phone
   const departmentNames = (employee.departmentIds || [])
     .map((deptId) => departments.find((d) => d.id === deptId)?.name)
     .filter(Boolean)
@@ -35,7 +34,7 @@ export default function EmployeeDetail() {
   return (
     <div className="page">
       <div className="detail-toolbar">
-        <Link to="/directory" className="back-link">
+        <Link to="/organisation/directory" className="back-link">
           <Icon name="chevron" size={14} className="back-icon" />
           Back to directory
         </Link>
@@ -69,61 +68,14 @@ export default function EmployeeDetail() {
       </div>
 
       <div className="detail-grid">
-        <section className="detail-card">
-          <h2>Contact</h2>
-          {employee.email || employee.phone ? (
-            <dl className="detail-list">
-              {employee.email && (
-                <>
-                  <dt>Email</dt>
-                  <dd>
-                    <a href={`mailto:${employee.email}`}>{employee.email}</a>
-                  </dd>
-                </>
-              )}
-              {employee.phone && (
-                <>
-                  <dt>Phone</dt>
-                  <dd>
-                    <a href={`tel:${employee.phone}`}>{employee.phone}</a>
-                  </dd>
-                </>
-              )}
-            </dl>
-          ) : (
-            <p className="empty-state">Not on file yet.</p>
-          )}
-        </section>
+        <ContactPanel employee={employee} />
 
-        <section className="detail-card">
-          <h2>Emergency contact</h2>
-          {hasEmergencyContact ? (
-            <dl className="detail-list">
-              {emergency.name && (
-                <>
-                  <dt>Name</dt>
-                  <dd>{emergency.name}</dd>
-                </>
-              )}
-              {emergency.relation && (
-                <>
-                  <dt>Relation</dt>
-                  <dd>{emergency.relation}</dd>
-                </>
-              )}
-              {emergency.phone && (
-                <>
-                  <dt>Phone</dt>
-                  <dd>
-                    <a href={`tel:${emergency.phone}`}>{emergency.phone}</a>
-                  </dd>
-                </>
-              )}
-            </dl>
-          ) : (
-            <p className="empty-state">Not on file yet.</p>
-          )}
-        </section>
+        {(chain.length > 0 || reports.length > 0) && (
+          <div>
+            <h2>Org Chart</h2>
+            <MiniOrgTree chain={chain} reports={reports} />
+          </div>
+        )}
       </div>
 
       {jobDescription && (
@@ -134,11 +86,6 @@ export default function EmployeeDetail() {
           </Link>
         </section>
       )}
-
-      <section className="section">
-        <h2>Where {employee.name.split(' ')[0]} fits</h2>
-        <MiniOrgTree chain={chain} reports={reports} />
-      </section>
 
       {lightboxOpen && (
         <PhotoLightbox src={employee.photo} alt={employee.name} onClose={() => setLightboxOpen(false)} />
