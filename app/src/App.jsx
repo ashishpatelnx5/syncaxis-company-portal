@@ -22,10 +22,7 @@ import Login from './pages/Login'
 import MyProfile from './pages/MyProfile'
 import Organisation from './pages/Organisation'
 import OrganisationOverview from './pages/OrganisationOverview'
-import RolesAdmin from './pages/RolesAdmin'
 import TeamDailyPlans from './pages/TeamDailyPlans'
-import UserGroupsAdmin from './pages/UserGroupsAdmin'
-import UsersAdmin from './pages/UsersAdmin'
 
 function App() {
   return (
@@ -165,30 +162,6 @@ function App() {
               element={
                 <ProtectedPage pageKey="admin-complaints">
                   <ComplaintsAdmin />
-                </ProtectedPage>
-              }
-            />
-            <Route
-              path="users"
-              element={
-                <ProtectedPage adminOnly>
-                  <UsersAdmin />
-                </ProtectedPage>
-              }
-            />
-            <Route
-              path="roles"
-              element={
-                <ProtectedPage adminOnly>
-                  <RolesAdmin />
-                </ProtectedPage>
-              }
-            />
-            <Route
-              path="user-groups"
-              element={
-                <ProtectedPage adminOnly>
-                  <UserGroupsAdmin />
                 </ProtectedPage>
               }
             />
