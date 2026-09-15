@@ -32,14 +32,21 @@ export const apps = [
   },
   {
     id: 'inquiry',
-    name: 'Enquiry Portal',
+    name: 'Inquiry Portal',
     description: 'Submit and track inquiries',
-    url: import.meta.env.VITE_INQUIRY_URL || 'http://localhost:8057/',
+    url: import.meta.env.VITE_INQUIRY_URL || 'https://inquiry.syncaxis.com/',
     icon: 'inquiry',
+  },
+  {
+    id: 'leads-tracker',
+    name: 'Leads Tracker',
+    description: 'Sales/marketing lead and enquiry tracking',
+    url: import.meta.env.VITE_LEADS_TRACKER_URL || 'http://localhost:8057/',
+    icon: 'grid',
     // Opts into the SSO handoff in AppCard.jsx instead of a plain link -
-    // the Enquiry Portal has its own backend that can exchange a handoff
-    // code (see /api/auth/sso/issue + /sso/exchange), unlike the other apps
-    // here which are just external systems with their own separate logins.
+    // Leads Tracker has its own backend that can exchange a handoff code
+    // (see /api/auth/sso/issue + /sso/exchange), unlike the other apps here
+    // which are just external systems with their own separate logins.
     ssoHandoff: true,
   },
 ]
