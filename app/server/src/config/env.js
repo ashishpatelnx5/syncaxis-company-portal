@@ -19,4 +19,8 @@ export const env = {
   jwtSecret: required('JWT_SECRET'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '8h',
   corsOrigins: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',').map((s) => s.trim()),
+  // syncaxis-iam is now the identity/permission authority — Portal proxies
+  // auth to it and translates the response back into its own shape (see
+  // middleware/auth.js). No trailing slash expected.
+  iamApiUrl: required('IAM_API_URL'),
 }

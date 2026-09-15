@@ -1,48 +1,32 @@
-import bcrypt from 'bcryptjs'
-import crypto from 'crypto'
 import { Router } from 'express'
-import jwt from 'jsonwebtoken'
 import { getPool, sql } from '../config/db.js'
 import { env } from '../config/env.js'
-import { getEffectiveAccess, requireAuth } from '../middleware/auth.js'
+import {
+  createSession,
+  destroySession,
+  getSession,
+  requireAuth,
+  signPortalToken,
+  toUserSummary,
+  updateSessionIamToken,
+} from '../middleware/auth.js'
 
 const router = Router()
 
-const MAX_FAILED_LOGINS = 3
-
-// Short-lived, single-use handoff codes so clicking a "Leads Tracker"-style
-// app tile can land the user already signed in there, without ever putting
-// the real JWT in a URL (which browser history/referrers/logs could leak).
-// In-memory only, same tradeoff as everything else here — an app restart
-// just means anyone mid-handoff has to click the tile again.
-const ssoCodes = new Map() // code -> { userId, expiresAt }
-const SSO_CODE_TTL_MS = 60 * 1000
-
-function sweepExpiredSsoCodes() {
-  const now = Date.now()
-  for (const [code, entry] of ssoCodes) {
-    if (entry.expiresAt < now) ssoCodes.delete(code)
-  }
+async function resolveEmployeeId(pool, iamUserId) {
+  const result = await pool.request().input('id', sql.Int, iamUserId).query('SELECT EmployeeId FROM portal.Employees WHERE AuthUserId = @id')
+  return result.recordset[0]?.EmployeeId ?? null
 }
 
-function signToken(user) {
-  return jwt.sign({ sub: user.UserId, username: user.Username }, env.jwtSecret, {
-    expiresIn: env.jwtExpiresIn,
-  })
-}
-
-function toUserSummary(user, access) {
-  return {
-    id: user.UserId,
-    username: user.Username,
-    displayName: user.DisplayName || user.Username,
-    employeeId: user.EmployeeId ?? null,
-    isAdmin: access.isAdmin,
-    roles: access.roles,
-    lastLoginAt: user.LastLoginAt ? user.LastLoginAt.toISOString() : null,
-    passwordChangedAt: user.PasswordChangedAt ? user.PasswordChangedAt.toISOString() : null,
-    permissions: { pages: [...access.pages], applications: [...access.applications] },
-  }
+// Shared by /login and /sso/exchange: both end up with the same
+// {token, user} shape from syncaxis-iam — this is the one place that turns
+// it into a Portal session and Portal's own {token, user} response.
+async function establishSession(iamData) {
+  const pool = await getPool()
+  const employeeId = await resolveEmployeeId(pool, iamData.user.id)
+  const sid = createSession(iamData.user, iamData.token)
+  const token = signPortalToken({ sid, iamUserId: iamData.user.id, username: iamData.user.username })
+  return { token, user: toUserSummary(getSession(sid), employeeId) }
 }
 
 router.post('/login', async (req, res, next) => {
@@ -50,51 +34,22 @@ router.post('/login', async (req, res, next) => {
     const { username, password } = req.body || {}
     if (!username || !password) return res.status(400).json({ error: 'Username and password are required.' })
 
-    const pool = await getPool()
-    const result = await pool
-      .request()
-      .input('username', sql.NVarChar(100), username.trim())
-      .query(
-        'SELECT UserId, Username, DisplayName, PasswordHash, IsActive, IsLocked, FailedLoginCount, LastLoginAt, PasswordChangedAt, EmployeeId FROM portal.Users WHERE Username = @username',
-      )
-
-    const user = result.recordset[0]
-    const invalidMessage = { error: 'Incorrect username or password.' }
-    if (!user || !user.IsActive) return res.status(401).json(invalidMessage)
-
-    if (user.IsLocked) {
-      return res.status(423).json({ error: 'This account is locked. Contact an administrator to unlock it.' })
+    let iamRes
+    try {
+      iamRes = await fetch(`${env.iamApiUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      })
+    } catch (err) {
+      console.error('syncaxis-iam unreachable during login:', err)
+      return res.status(503).json({ error: 'Cannot reach the identity service right now. Please try again shortly.' })
     }
 
-    const ok = await bcrypt.compare(password, user.PasswordHash)
-    if (!ok) {
-      const failedCount = user.FailedLoginCount + 1
-      const locksNow = failedCount >= MAX_FAILED_LOGINS
-      await pool
-        .request()
-        .input('id', sql.Int, user.UserId)
-        .input('failedCount', sql.Int, failedCount)
-        .input('isLocked', sql.Bit, locksNow)
-        .query('UPDATE portal.Users SET FailedLoginCount = @failedCount, IsLocked = @isLocked WHERE UserId = @id')
+    const data = await iamRes.json().catch(() => ({}))
+    if (!iamRes.ok) return res.status(iamRes.status).json({ error: data.error || 'Login failed.' })
 
-      if (locksNow) {
-        return res.status(423).json({
-          error: `Too many failed attempts — this account is now locked. Contact an administrator to unlock it.`,
-        })
-      }
-      return res.status(401).json(invalidMessage)
-    }
-
-    await pool
-      .request()
-      .input('id', sql.Int, user.UserId)
-      .query('UPDATE portal.Users SET FailedLoginCount = 0, LastLoginAt = SYSUTCDATETIME() WHERE UserId = @id')
-
-    const access = await getEffectiveAccess(pool, user.UserId)
-    // LastLoginAt just got set server-side above — reflect that in the
-    // response the freshly-signed-in user sees immediately, rather than the
-    // pre-login value still sitting in `user`.
-    res.json({ token: signToken(user), user: toUserSummary({ ...user, LastLoginAt: new Date() }, access) })
+    res.json(await establishSession(data))
   } catch (err) {
     next(err)
   }
@@ -108,24 +63,32 @@ router.post('/change-password', requireAuth, async (req, res, next) => {
     }
     if (newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters.' })
 
-    const pool = await getPool()
-    const result = await pool
-      .request()
-      .input('id', sql.Int, req.user.sub)
-      .query('SELECT PasswordHash FROM portal.Users WHERE UserId = @id')
+    const iamRes = await fetch(`${env.iamApiUrl}/auth/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${req.session.iamToken}` },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    })
 
-    const user = result.recordset[0]
-    if (!user) return res.status(401).json({ error: 'Session no longer valid.' })
+    if (!iamRes.ok) {
+      const data = await iamRes.json().catch(() => ({}))
+      const fallback = iamRes.status === 401 ? 'Current password is incorrect.' : 'Could not change password.'
+      return res.status(iamRes.status).json({ error: data.error || fallback })
+    }
 
-    const ok = await bcrypt.compare(currentPassword, user.PasswordHash)
-    if (!ok) return res.status(401).json({ error: 'Current password is incorrect.' })
-
-    const passwordHash = await bcrypt.hash(newPassword, 12)
-    await pool
-      .request()
-      .input('id', sql.Int, req.user.sub)
-      .input('passwordHash', sql.NVarChar(255), passwordHash)
-      .query('UPDATE portal.Users SET PasswordHash = @passwordHash, PasswordChangedAt = SYSUTCDATETIME() WHERE UserId = @id')
+    // syncaxis-iam may revoke this session's token as part of a password
+    // change — re-authenticate with the new password right away so this
+    // browser tab doesn't get logged out on its next 5-minute re-verify.
+    try {
+      const reloginRes = await fetch(`${env.iamApiUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: req.user.username, password: newPassword }),
+      })
+      const reloginData = await reloginRes.json().catch(() => ({}))
+      if (reloginRes.ok) updateSessionIamToken(req.user.sid, reloginData.token)
+    } catch (err) {
+      console.error('Re-authentication after password change failed — session keeps its old syncaxis-iam token:', err)
+    }
 
     res.status(204).end()
   } catch (err) {
@@ -136,62 +99,69 @@ router.post('/change-password', requireAuth, async (req, res, next) => {
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
     const pool = await getPool()
-    const result = await pool
-      .request()
-      .input('id', sql.Int, req.user.sub)
-      .query('SELECT UserId, Username, DisplayName, IsActive, LastLoginAt, PasswordChangedAt, EmployeeId FROM portal.Users WHERE UserId = @id')
-
-    const user = result.recordset[0]
-    if (!user || !user.IsActive) return res.status(401).json({ error: 'Session no longer valid.' })
-
-    const access = await getEffectiveAccess(pool, req.user.sub)
-    res.json({ user: toUserSummary(user, access) })
+    const employeeId = await resolveEmployeeId(pool, req.session.iamUserId)
+    res.json({ user: toUserSummary(req.session, employeeId) })
   } catch (err) {
     next(err)
   }
 })
 
-// POST /api/auth/sso/issue - called by the Portal's own frontend (with the
-// current user's normal Bearer token) right before redirecting to a
-// satellite app's tile URL, so that app's own backend can exchange the code
-// (server-to-server, see /sso/exchange) for a real login - the user never
-// re-enters credentials or sees a second login screen.
-router.post('/sso/issue', requireAuth, (req, res) => {
-  sweepExpiredSsoCodes()
-  const code = crypto.randomBytes(32).toString('hex')
-  ssoCodes.set(code, { userId: req.user.sub, expiresAt: Date.now() + SSO_CODE_TTL_MS })
-  res.json({ code })
+// POST /sso/issue - called by Portal's own frontend (with the current
+// user's normal Bearer token) right before redirecting to a satellite app's
+// tile URL. Proxies straight to syncaxis-iam's own handoff-code endpoint
+// using this session's stored iam token; the code itself is opaque to
+// Portal either way, so there's nothing left to do but relay it.
+router.post('/sso/issue', requireAuth, async (req, res, next) => {
+  try {
+    const iamRes = await fetch(`${env.iamApiUrl}/auth/sso/issue`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${req.session.iamToken}` },
+    })
+    const data = await iamRes.json().catch(() => ({}))
+    if (!iamRes.ok) return res.status(iamRes.status).json({ error: data.error || 'Could not start sign-in handoff.' })
+    res.json(data)
+  } catch (err) {
+    next(err)
+  }
 })
 
-// POST /api/auth/sso/exchange - called server-to-server by a satellite app's
-// backend (never from a browser) to trade a handoff code for the same
-// {token, user} shape /login returns. Single-use and short-lived: consumed
-// immediately, and expires in SSO_CODE_TTL_MS even if unused.
+// POST /sso/exchange - called server-to-server by a satellite app's backend
+// (Leads Tracker, ERP Dashboard — never a browser) to trade a handoff code
+// for the same {token, user} shape /login returns. Portal exchanges the
+// code with syncaxis-iam itself, then establishes its own local session
+// exactly as /login does, so those apps never notice the identity provider
+// behind Portal changed.
 router.post('/sso/exchange', async (req, res, next) => {
   try {
     const { code } = req.body || {}
-    const entry = code ? ssoCodes.get(code) : null
-    if (code) ssoCodes.delete(code)
-    if (!entry || entry.expiresAt < Date.now()) {
-      return res.status(401).json({ error: 'This sign-in link has expired - please try again from the Portal.' })
+    if (!code) return res.status(400).json({ error: 'Missing sign-in code.' })
+
+    const iamRes = await fetch(`${env.iamApiUrl}/auth/sso/exchange`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    })
+
+    const data = await iamRes.json().catch(() => ({}))
+    if (!iamRes.ok) {
+      return res.status(iamRes.status).json({ error: data.error || 'This sign-in link has expired — please try again from the Portal.' })
     }
 
-    const pool = await getPool()
-    const result = await pool
-      .request()
-      .input('id', sql.Int, entry.userId)
-      .query(
-        'SELECT UserId, Username, DisplayName, IsActive, LastLoginAt, PasswordChangedAt, EmployeeId FROM portal.Users WHERE UserId = @id',
-      )
-
-    const user = result.recordset[0]
-    if (!user || !user.IsActive) return res.status(401).json({ error: 'Account is no longer active.' })
-
-    const access = await getEffectiveAccess(pool, user.UserId)
-    res.json({ token: signToken(user), user: toUserSummary(user, access) })
+    res.json(await establishSession(data))
   } catch (err) {
     next(err)
   }
+})
+
+router.post('/logout', requireAuth, async (req, res) => {
+  destroySession(req.user.sid)
+  // Best-effort, mainly for symmetry/audit on syncaxis-iam's side — Portal's
+  // own session is already gone regardless of whether this succeeds.
+  fetch(`${env.iamApiUrl}/auth/logout`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${req.session.iamToken}` },
+  }).catch(() => {})
+  res.status(204).end()
 })
 
 export default router

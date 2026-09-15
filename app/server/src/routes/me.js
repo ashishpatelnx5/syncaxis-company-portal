@@ -12,10 +12,13 @@ router.use(requireAuth)
 // the same way Account/My Profile are available to any signed-in user.
 router.put('/employee', async (req, res, next) => {
   try {
+    // req.user.sub is now the syncaxis-iam user id (Portal's own JWT subject
+    // since the identity delegation) — resolve via Employees.AuthUserId, not
+    // portal.Users, which is no longer what identifies a signed-in user.
     const userResult = await (await getPool())
       .request()
       .input('id', sql.Int, req.user.sub)
-      .query('SELECT EmployeeId FROM portal.Users WHERE UserId = @id')
+      .query('SELECT EmployeeId FROM portal.Employees WHERE AuthUserId = @id')
 
     const employeeId = userResult.recordset[0]?.EmployeeId
     if (!employeeId) return res.status(400).json({ error: "Your account isn't linked to an employee record." })
