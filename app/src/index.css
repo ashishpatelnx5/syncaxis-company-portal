@@ -1691,22 +1691,37 @@ a.mini-person:hover .mini-avatar {
 
 /* Login */
 .login-screen {
+  --login-navy: #16324f;
+  --login-navy-dark: #0f2337;
+  --login-steel: #3e6b94;
+  --login-surface: #ffffff;
+  --login-border: #e2e6ea;
+  --login-text: #1f2937;
+  --login-text-muted: #6b7280;
+  --login-red: #a6423a;
+
+  /* The login card is always light regardless of the app's own theme
+     toggle - without this, native form-control chrome (the password
+     toggle button in particular) still renders using the page's dark
+     color-scheme even though we override the colors we style directly. */
+  color-scheme: light;
+
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
-  background: var(--bg);
+  padding: 24px;
+  background: var(--login-navy-dark);
 }
 
 .login-card {
   width: 100%;
   max-width: 340px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-md);
-  padding: 28px;
+  background: #ffffff;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  padding: 36px 32px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -1714,39 +1729,66 @@ a.mini-person:hover .mini-avatar {
 }
 
 .login-logo {
-  height: 40px;
-  width: auto;
+  width: 100%;
+  max-width: 220px;
+  height: auto;
   align-self: center;
   border-radius: 6px;
 }
 
-@media (prefers-color-scheme: dark) {
-  .login-logo {
-    background: #fff;
-    padding: 6px 10px;
-  }
-}
-
-:root[data-theme='dark'] .login-logo {
-  background: #fff;
-  padding: 6px 10px;
-}
-
 .login-card h1 {
-  font-size: 20px;
-}
-
-.login-card .page-subtitle {
-  margin-top: -8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--login-navy);
 }
 
 .login-card .form-field {
+  text-align: left;
+  color: var(--login-text-muted);
+}
+
+.login-card .form-field input {
+  background: var(--login-surface);
+  border-color: var(--login-border);
+  color: var(--login-text);
+}
+
+.login-card .form-field input:focus {
+  outline-color: var(--login-steel);
+}
+
+.login-card .password-toggle {
+  background: none;
+  border: none;
+  color: var(--login-text-muted);
+}
+.login-card .password-toggle:hover {
+  color: var(--login-navy);
+}
+
+.login-error {
+  background: #fbeaea;
+  color: var(--login-red);
+  border: 1px solid var(--login-red);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  min-height: 42px;
+  box-sizing: border-box;
   text-align: left;
 }
 
 .login-submit {
   justify-content: center;
   margin-top: 4px;
+  background: var(--login-navy);
+  border-color: var(--login-navy);
+  color: #ffffff;
+}
+.login-submit:hover {
+  background: var(--login-steel);
+  border-color: var(--login-steel);
 }
 
 .password-field {
