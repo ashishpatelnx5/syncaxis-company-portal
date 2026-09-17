@@ -85,7 +85,9 @@ router.post('/change-password', requireAuth, async (req, res, next) => {
         body: JSON.stringify({ username: req.user.username, password: newPassword }),
       })
       const reloginData = await reloginRes.json().catch(() => ({}))
-      if (reloginRes.ok) updateSessionIamToken(req.user.sid, reloginData.token)
+      if (reloginRes.ok) {
+        updateSessionIamToken(req.user.sid, reloginData.token, reloginData.user?.passwordChangedAt, reloginData.user?.mustChangePassword)
+      }
     } catch (err) {
       console.error('Re-authentication after password change failed — session keeps its old syncaxis-iam token:', err)
     }

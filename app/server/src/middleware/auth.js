@@ -14,7 +14,8 @@ const sessions = new Map() // sid -> SessionRecord
 const REVERIFY_INTERVAL_MS = 5 * 60 * 1000
 
 // SessionRecord: { iamUserId, username, displayName, roles, lastLoginAt,
-// iamToken, perms, isFullAccess, lastVerifiedAt }
+// passwordChangedAt, mustChangePassword, iamToken, perms, isFullAccess,
+// lastVerifiedAt }
 export function createSession(iamUser, iamToken) {
   const sid = crypto.randomBytes(24).toString('hex')
   sessions.set(sid, {
@@ -23,6 +24,8 @@ export function createSession(iamUser, iamToken) {
     displayName: iamUser.displayName || iamUser.username,
     roles: iamUser.roles || [],
     lastLoginAt: iamUser.lastLoginAt || null,
+    passwordChangedAt: iamUser.passwordChangedAt || null,
+    mustChangePassword: Boolean(iamUser.mustChangePassword),
     iamToken,
     perms: iamUser.perms || [],
     isFullAccess: Boolean(iamUser.isFullAccess),
@@ -35,9 +38,15 @@ export function getSession(sid) {
   return sessions.get(sid)
 }
 
-export function updateSessionIamToken(sid, iamToken) {
+// passwordChangedAt/mustChangePassword are optional - only /change-password's
+// own re-login passes them (the periodic reverifyWithIam below refreshes
+// them from every other syncaxis-iam response already).
+export function updateSessionIamToken(sid, iamToken, passwordChangedAt, mustChangePassword) {
   const session = sessions.get(sid)
-  if (session) session.iamToken = iamToken
+  if (!session) return
+  session.iamToken = iamToken
+  if (passwordChangedAt !== undefined) session.passwordChangedAt = passwordChangedAt
+  if (mustChangePassword !== undefined) session.mustChangePassword = mustChangePassword
 }
 
 export function destroySession(sid) {
@@ -81,9 +90,8 @@ export function toUserSummary(session, employeeId) {
     isAdmin: access.isAdmin,
     roles: session.roles,
     lastLoginAt: session.lastLoginAt,
-    // syncaxis-iam's UserSummary doesn't report this yet — Account.jsx falls
-    // back to "Never" until it does.
-    passwordChangedAt: null,
+    passwordChangedAt: session.passwordChangedAt,
+    mustChangePassword: session.mustChangePassword,
     permissions: { pages: access.pages, applications: access.applications },
   }
 }
@@ -107,6 +115,8 @@ async function reverifyWithIam(session) {
     session.displayName = body.user?.displayName || session.displayName
     session.roles = body.user?.roles || session.roles
     session.lastLoginAt = body.user?.lastLoginAt || session.lastLoginAt
+    session.passwordChangedAt = body.user?.passwordChangedAt ?? session.passwordChangedAt
+    session.mustChangePassword = Boolean(body.user?.mustChangePassword)
     session.perms = body.user?.perms || []
     session.isFullAccess = Boolean(body.user?.isFullAccess)
     session.lastVerifiedAt = Date.now()
