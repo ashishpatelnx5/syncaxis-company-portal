@@ -19,6 +19,20 @@ router.use(requireAuth)
 const requireAdminEmployees = requirePermission('page', 'admin-employees')
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_FILE_SIZE_BYTES } })
 
+// Name itself (NOT NULL, and what every existing read path - Directory,
+// Avatar initials, search, org chart, exports - keys off) is computed here
+// from the parts rather than typed directly, matching syncaxis-iam's own
+// First/Middle/Last/Display name model (see migration 23). Used by both
+// POST '/' and PUT '/:id' below.
+function resolveNameFields(body) {
+  const firstName = (body.firstName || '').trim()
+  const middleName = (body.middleName || '').trim()
+  const lastName = (body.lastName || '').trim()
+  const displayName = (body.displayName || '').trim()
+  const name = [firstName, middleName, lastName].filter(Boolean).join(' ')
+  return { firstName, middleName, lastName, displayName, name }
+}
+
 function toAddress(row, prefix) {
   return {
     line1: row[`${prefix}AddressLine1`] || '',
@@ -49,6 +63,10 @@ export function toEmployee(
     id: row.EmployeeId,
     employeeId: row.EmployeeCode || '',
     name: row.Name,
+    firstName: row.FirstName || '',
+    middleName: row.MiddleName || '',
+    lastName: row.LastName || '',
+    displayName: row.DisplayName || '',
     photo: row.PhotoUrl || '',
     title: row.Title || '',
     departmentIds: departmentIdsByEmployee.get(row.EmployeeId) || [],
@@ -636,12 +654,17 @@ router.post('/', requireAdminEmployees, async (req, res, next) => {
   const transaction = new sql.Transaction(pool)
   try {
     const body = req.body || {}
-    if (!body.name?.trim()) return res.status(400).json({ error: 'Name is required.' })
+    const { firstName, middleName, lastName, displayName, name } = resolveNameFields(body)
+    if (!firstName || !lastName) return res.status(400).json({ error: 'First name and last name are required.' })
 
     await transaction.begin()
     const insertRequest = new sql.Request(transaction)
       .input('employeeCode', sql.NVarChar(20), normalizeCode(body.employeeId))
-      .input('name', sql.NVarChar(200), body.name.trim())
+      .input('name', sql.NVarChar(200), name)
+      .input('firstName', sql.NVarChar(100), firstName)
+      .input('middleName', sql.NVarChar(100), middleName || null)
+      .input('lastName', sql.NVarChar(100), lastName)
+      .input('displayName', sql.NVarChar(150), displayName || null)
       .input('title', sql.NVarChar(200), body.title || null)
       .input('email', sql.NVarChar(256), body.email || null)
       .input('phone', sql.NVarChar(50), body.phone || null)
@@ -654,9 +677,9 @@ router.post('/', requireAdminEmployees, async (req, res, next) => {
     // any enabled trigger. Fetch the row separately instead.
     const insertResult = await insertRequest.query(`
         INSERT INTO portal.Employees
-          (EmployeeCode, Name, Title, Email, Phone, PhotoUrl, ManagerId, JobDescriptionId, ${ADMIN_PERSONAL_DETAIL_INSERT_COLUMNS})
+          (EmployeeCode, Name, FirstName, MiddleName, LastName, DisplayName, Title, Email, Phone, PhotoUrl, ManagerId, JobDescriptionId, ${ADMIN_PERSONAL_DETAIL_INSERT_COLUMNS})
         VALUES
-          (@employeeCode, @name, @title, @email, @phone, @photoUrl, @managerId, @jobDescriptionId, ${ADMIN_PERSONAL_DETAIL_INSERT_VALUES});
+          (@employeeCode, @name, @firstName, @middleName, @lastName, @displayName, @title, @email, @phone, @photoUrl, @managerId, @jobDescriptionId, ${ADMIN_PERSONAL_DETAIL_INSERT_VALUES});
         SELECT CAST(SCOPE_IDENTITY() AS INT) AS EmployeeId;
       `)
 
@@ -688,7 +711,8 @@ router.put('/:id', requireAdminEmployees, async (req, res, next) => {
   try {
     const id = Number(req.params.id)
     const body = req.body || {}
-    if (!body.name?.trim()) return res.status(400).json({ error: 'Name is required.' })
+    const { firstName, middleName, lastName, displayName, name } = resolveNameFields(body)
+    if (!firstName || !lastName) return res.status(400).json({ error: 'First name and last name are required.' })
 
     const previousPhotoResult = await pool.request().input('id', sql.Int, id).query('SELECT PhotoUrl FROM portal.Employees WHERE EmployeeId = @id')
     const previousPhoto = previousPhotoResult.recordset[0]?.PhotoUrl
@@ -697,7 +721,11 @@ router.put('/:id', requireAdminEmployees, async (req, res, next) => {
     const updateRequest = new sql.Request(transaction)
       .input('id', sql.Int, id)
       .input('employeeCode', sql.NVarChar(20), normalizeCode(body.employeeId))
-      .input('name', sql.NVarChar(200), body.name.trim())
+      .input('name', sql.NVarChar(200), name)
+      .input('firstName', sql.NVarChar(100), firstName)
+      .input('middleName', sql.NVarChar(100), middleName || null)
+      .input('lastName', sql.NVarChar(100), lastName)
+      .input('displayName', sql.NVarChar(150), displayName || null)
       .input('title', sql.NVarChar(200), body.title || null)
       .input('email', sql.NVarChar(256), body.email || null)
       .input('phone', sql.NVarChar(50), body.phone || null)
@@ -708,7 +736,8 @@ router.put('/:id', requireAdminEmployees, async (req, res, next) => {
     // No OUTPUT clause — same trigger restriction as the insert above.
     const updateResult = await updateRequest.query(`
         UPDATE portal.Employees SET
-          EmployeeCode = @employeeCode, Name = @name, Title = @title, Email = @email, Phone = @phone,
+          EmployeeCode = @employeeCode, Name = @name, FirstName = @firstName, MiddleName = @middleName,
+          LastName = @lastName, DisplayName = @displayName, Title = @title, Email = @email, Phone = @phone,
           PhotoUrl = @photoUrl, ManagerId = @managerId, JobDescriptionId = @jobDescriptionId,
           ${ADMIN_PERSONAL_DETAIL_SET_CLAUSE}
         WHERE EmployeeId = @id

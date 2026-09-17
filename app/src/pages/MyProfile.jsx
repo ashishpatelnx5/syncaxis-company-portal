@@ -294,19 +294,20 @@ function ProfileEditor({ employee, cityOptions, onSaved }) {
                 </div>
               </div>
               <div className="form-row form-row-3">
-                <PhoneInput label="Mobile no." value={state.phone} onChange={(v) => set('phone', v)} />
+                <PhoneInput label="Mobile no." value={state.phone} disabled />
                 <label className="form-field">
                   <span>Email</span>
-                  <input type="email" value={state.email} onChange={(e) => set('email', e.target.value)} />
+                  <input type="email" value={state.email} disabled />
                 </label>
                 <label className="form-field">
                   <span>Date of joining</span>
                   <input type="date" value={state.personalDetails.dateOfJoining} disabled />
                 </label>
               </div>
-              <p className="form-hint">
-                Name, title, department, manager, job description, and date of joining are set by an admin — see{' '}
-                <Link to="/organisation/directory">the directory</Link> or contact an administrator to change those.
+              <p className="form-hint" style={{ marginTop: 8 }}>
+                Name, title, department, manager, job description, mobile no., email, and date of joining are set by an
+                admin — see <Link to="/organisation/directory">the directory</Link> or contact an administrator to
+                change those.
               </p>
             </>
           ) : (
@@ -318,6 +319,50 @@ function ProfileEditor({ employee, cityOptions, onSaved }) {
               <dt>Date of joining</dt>
               <dd>{formatDate(employee.dateOfJoining) || '—'}</dd>
             </dl>
+          )}
+          <TabActions {...actionsProps} />
+        </div>
+      ),
+    },
+    {
+      key: 'emergency',
+      label: 'Emergency contact',
+      content: (
+        <div>
+          {editing ? (
+            <EmergencyContactsFields contacts={state.emergencyContacts} onChange={(v) => set('emergencyContacts', v)} />
+          ) : (
+            <div className="detail-grid" style={{ gridTemplateColumns: '1fr' }}>
+              <section className="detail-card">
+                <h2>Emergency contact{(employee.emergencyContacts || []).length > 1 ? 's' : ''}</h2>
+                {(employee.emergencyContacts || []).length > 0 ? (
+                  <div className="detail-card-list">
+                    {employee.emergencyContacts.map((c, i) => (
+                      <dl className="detail-list" key={i}>
+                        <dt>Name</dt>
+                        <dd>{c.name}</dd>
+                        {c.relation && (
+                          <>
+                            <dt>Relation</dt>
+                            <dd>{c.relation}</dd>
+                          </>
+                        )}
+                        {c.phone && (
+                          <>
+                            <dt>Phone</dt>
+                            <dd>
+                              <a href={`tel:${c.phone}`}>{c.phone}</a>
+                            </dd>
+                          </>
+                        )}
+                      </dl>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="empty-state">Not on file yet.</p>
+                )}
+              </section>
+            </div>
           )}
           <TabActions {...actionsProps} />
         </div>
@@ -437,50 +482,6 @@ function ProfileEditor({ employee, cityOptions, onSaved }) {
                             <dt>Contact no.</dt>
                             <dd>
                               <a href={`tel:${m.contactNo}`}>{m.contactNo}</a>
-                            </dd>
-                          </>
-                        )}
-                      </dl>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="empty-state">Not on file yet.</p>
-                )}
-              </section>
-            </div>
-          )}
-          <TabActions {...actionsProps} />
-        </div>
-      ),
-    },
-    {
-      key: 'emergency',
-      label: 'Emergency contact',
-      content: (
-        <div>
-          {editing ? (
-            <EmergencyContactsFields contacts={state.emergencyContacts} onChange={(v) => set('emergencyContacts', v)} />
-          ) : (
-            <div className="detail-grid" style={{ gridTemplateColumns: '1fr' }}>
-              <section className="detail-card">
-                <h2>Emergency contact{(employee.emergencyContacts || []).length > 1 ? 's' : ''}</h2>
-                {(employee.emergencyContacts || []).length > 0 ? (
-                  <div className="detail-card-list">
-                    {employee.emergencyContacts.map((c, i) => (
-                      <dl className="detail-list" key={i}>
-                        <dt>Name</dt>
-                        <dd>{c.name}</dd>
-                        {c.relation && (
-                          <>
-                            <dt>Relation</dt>
-                            <dd>{c.relation}</dd>
-                          </>
-                        )}
-                        {c.phone && (
-                          <>
-                            <dt>Phone</dt>
-                            <dd>
-                              <a href={`tel:${c.phone}`}>{c.phone}</a>
                             </dd>
                           </>
                         )}

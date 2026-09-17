@@ -46,16 +46,16 @@ router.put('/employee', async (req, res, next) => {
 
     const body = req.body || {}
     await transaction.begin()
+    // Email/Phone (like Title/ManagerId/DateOfJoining) are admin/HR-set only
+    // now — silently ignored here even if the client still posts them, so a
+    // stale form can't accidentally overwrite them.
     const request = new sql.Request(transaction)
       .input('id', sql.Int, own.EmployeeId)
       .input('photoUrl', sql.NVarChar(sql.MAX), body.photo || null)
-      .input('email', sql.NVarChar(256), body.email || null)
-      .input('phone', sql.NVarChar(50), body.phone || null)
-    // DateOfJoining is admin-set only (like Title/ManagerId) — excluded here.
     bindPersonalDetailInputs(request, body, { includeDateOfJoining: false })
     await request.query(`
         UPDATE portal.Employees SET
-          PhotoUrl = @photoUrl, Email = @email, Phone = @phone,
+          PhotoUrl = @photoUrl,
           ${SELF_SERVICE_PERSONAL_DETAIL_SET_CLAUSE}
         WHERE EmployeeId = @id
       `)

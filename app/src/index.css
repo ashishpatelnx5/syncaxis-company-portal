@@ -122,14 +122,21 @@ button, input, select {
   align-items: center;
   padding: 18px 20px;
   cursor: pointer;
+  min-width: 0;
 }
 
 .brand-logo {
-  height: 40px;
-  width: auto;
+  height: 52px;
+  width: 100%;
   max-width: 100%;
   object-fit: contain;
   border-radius: 6px;
+  /* Both width and height are bounded (not just height, with width left to
+     the intrinsic aspect ratio) so object-fit: contain can guarantee the
+     logo never exceeds the sidebar regardless of the source image's own
+     proportions. border-box absorbs the dark-theme padding below into that
+     same box instead of adding to it. */
+  box-sizing: border-box;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -305,16 +312,15 @@ button, input, select {
 }
 
 .page {
-  max-width: 1100px;
-  margin: 0 auto;
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 28px;
 }
 
 .tab-strip {
-  max-width: 1100px;
-  margin: 0 auto 20px;
+  width: 100%;
+  margin: 0 0 20px;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
@@ -696,6 +702,13 @@ button, input, select {
   font-size: 13px;
   font-weight: 500;
   color: var(--text-muted);
+  /* Also used on a <button> (the Delete action) alongside the <Link>s here -
+     strip button chrome so both render identically. */
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .back-link:hover {
@@ -1099,7 +1112,8 @@ a.mini-person:hover .mini-avatar {
 
 /* Buttons */
 .btn-primary,
-.btn-secondary {
+.btn-secondary,
+.btn-danger {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1129,6 +1143,21 @@ a.mini-person:hover .mini-avatar {
 .btn-secondary:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.btn-danger {
+  background: #ef4444;
+  color: #fff;
+}
+
+.btn-danger:hover {
+  opacity: 0.92;
+}
+
+.detail-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* Admin page */
@@ -1184,6 +1213,14 @@ a.mini-person:hover .mini-avatar {
 
 .admin-table tr:last-child td {
   border-bottom: none;
+}
+
+.admin-row-clickable {
+  cursor: pointer;
+}
+
+.admin-row-clickable:hover {
+  background: var(--surface-2);
 }
 
 .admin-name-cell {
@@ -1750,6 +1787,9 @@ a.mini-person:hover .mini-avatar {
 }
 
 .jd-holder-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 5px 12px;
   border-radius: 999px;
   background: var(--accent-soft);

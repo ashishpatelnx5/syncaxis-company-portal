@@ -67,7 +67,12 @@ function formToPayload(form) {
   }
 }
 
-export default function JobDescriptionForm({ jobDescription, onClose }) {
+// variant 'modal' (default, used for "Add job description") pops up over
+// the admin table; 'page' (used for editing an existing one) renders as a
+// full page instead - this form is long enough that a page reads better
+// than a popup. See JobDescriptionEdit.jsx, which mounts this with
+// variant='page' at /admin/job-descriptions/:id/edit.
+export default function JobDescriptionForm({ jobDescription, onClose, variant = 'modal' }) {
   const { addJobDescription, updateJobDescription } = useJobDescriptions()
   const { departments } = useDepartments()
   const isNew = jobDescription == null
@@ -118,18 +123,9 @@ export default function JobDescriptionForm({ jobDescription, onClose }) {
     }
   }
 
-  return (
-    <div className="modal-scrim" onClick={onClose}>
-      <form className="modal-panel modal-panel-wide" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
-        <div className="modal-header">
-          <h2>{isNew ? 'Add job description' : `Edit ${jobDescription.title}`}</h2>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
-            <Icon name="close" size={16} />
-          </button>
-        </div>
-
-        <div className="modal-body">
-          <div className="form-row">
+  const formFields = (
+    <>
+      <div className="form-row">
             <label className="form-field">
               <span>Title *</span>
               <input value={form.title} onChange={(e) => set('title', e.target.value)} required autoFocus />
@@ -287,21 +283,58 @@ export default function JobDescriptionForm({ jobDescription, onClose }) {
             </label>
           </div>
 
-          <label className="form-field">
-            <span>Accountability — overall (one per line, optional)</span>
-            <textarea value={form.accountability} onChange={(e) => set('accountability', e.target.value)} rows={3} />
-          </label>
-        </div>
+      <label className="form-field">
+        <span>Accountability — overall (one per line, optional)</span>
+        <textarea value={form.accountability} onChange={(e) => set('accountability', e.target.value)} rows={3} />
+      </label>
+    </>
+  )
 
-        <div className="modal-footer">
-          {error && <p className="form-error">{error}</p>}
-          <button type="button" className="btn-secondary" onClick={onClose}>
+  const footer = (
+    <div className="modal-footer">
+      {error && <p className="form-error">{error}</p>}
+      <button type="button" className="btn-secondary" onClick={onClose}>
+        Cancel
+      </button>
+      <button type="submit" className="btn-primary" disabled={submitting}>
+        {submitting ? 'Saving…' : isNew ? 'Add job description' : 'Save changes'}
+      </button>
+    </div>
+  )
+
+  if (variant === 'page') {
+    return (
+      <div className="page">
+        <div className="detail-toolbar">
+          <button type="button" className="back-link" onClick={onClose}>
+            <Icon name="chevron" size={14} className="back-icon" />
             Cancel
           </button>
-          <button type="submit" className="btn-primary" disabled={submitting}>
-            {submitting ? 'Saving…' : isNew ? 'Add job description' : 'Save changes'}
+        </div>
+        <header className="page-header">
+          <h1>{isNew ? 'Add job description' : `Edit ${jobDescription.title}`}</h1>
+        </header>
+        <form onSubmit={handleSubmit}>
+          {formFields}
+          {footer}
+        </form>
+      </div>
+    )
+  }
+
+  return (
+    <div className="modal-scrim" onClick={onClose}>
+      <form className="modal-panel modal-panel-wide" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
+        <div className="modal-header">
+          <h2>{isNew ? 'Add job description' : `Edit ${jobDescription.title}`}</h2>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
+            <Icon name="close" size={16} />
           </button>
         </div>
+
+        <div className="modal-body">{formFields}</div>
+
+        {footer}
       </form>
     </div>
   )
