@@ -55,7 +55,9 @@ export default function usePersonalDocuments(basePath) {
   async function download(doc) {
     setError('')
     try {
-      await downloadAuthedFile(`${basePath}/${doc.id}/file`, doc.fileName)
+      // downloadFileName is the full on-disk name (empId_name_type_timestamp.ext) -
+      // fileName is the simplified "<Type>.ext" shown on screen.
+      await downloadAuthedFile(`${basePath}/${doc.id}/file`, doc.downloadFileName || doc.fileName)
     } catch (err) {
       setError(err.message || 'Could not download that file.')
     }

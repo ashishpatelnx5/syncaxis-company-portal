@@ -1,10 +1,15 @@
 import Icon from './Icon'
+import RowDocumentUpload from './RowDocumentUpload'
 
 const emptyEntry = { companyName: '', designation: '', startDate: '', endDate: '' }
 
 // Unbounded add-a-row list (unlike Emergency Contact/Family Details) - no
-// max here, per how this was scoped.
-export default function ExperienceFields({ entries, onChange }) {
+// max here, per how this was scoped. basePath is the admin/self experience
+// collection URL (e.g. '/api/me/employee/experience' or
+// '/api/employees/:id/experience'), undefined for a not-yet-saved employee -
+// each row's own '${basePath}/${row.id}' is what RowDocumentUpload attaches
+// its upload/download calls to, so a row needs a saved id before it applies.
+export default function ExperienceFields({ entries, onChange, basePath }) {
   const list = entries.length ? entries : [emptyEntry]
 
   function updateAt(index, patch) {
@@ -47,6 +52,11 @@ export default function ExperienceFields({ entries, onChange }) {
             <span>End date</span>
             <input type="date" value={entry.endDate} onChange={(e) => updateAt(index, { endDate: e.target.value })} />
           </label>
+          <RowDocumentUpload
+            basePath={entry.id && basePath ? `${basePath}/${entry.id}` : undefined}
+            doc={entry.document}
+            onUploaded={(document) => updateAt(index, { document })}
+          />
           {list.length > 1 && (
             <button type="button" className="btn-secondary repeatable-row-remove" onClick={() => removeRow(index)} aria-label="Remove this experience entry">
               <Icon name="trash" size={14} />

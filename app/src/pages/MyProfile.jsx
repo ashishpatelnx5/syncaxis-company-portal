@@ -13,7 +13,8 @@ import ProfileTabsShell from '../components/ProfileTabsShell'
 import { useAuth } from '../context/useAuth'
 import { useDepartments } from '../context/useDepartments'
 import { useEmployees } from '../context/useEmployees'
-import { apiFetch } from '../utils/api'
+import usePersonalDocuments from '../hooks/usePersonalDocuments'
+import { apiFetch, downloadAuthedFile } from '../utils/api'
 import { fileToResizedDataUrl } from '../utils/image'
 
 function useCityOptions(employees) {
@@ -26,6 +27,37 @@ function useCityOptions(employees) {
 function formatDate(iso) {
   if (!iso) return null
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+// A plain "View" link next to the read-only Aadhar/PAN/DL number when a
+// document is on file - downloads it (under its full on-disk name) on
+// click. No file name shown here; nothing renders if there's no document.
+function DocumentLink({ docs, typeKey }) {
+  const doc = docs.documentFor(typeKey)
+  if (!doc) return null
+  return (
+    <button type="button" className="link-button" style={{ marginLeft: 8 }} onClick={() => docs.download(doc)}>
+      View
+    </button>
+  )
+}
+
+// Same idea as DocumentLink above, for a per-row Education/Experience
+// document rather than one of the type-keyed identity documents - the row
+// already carries its own `document` field (see fetchEducationByEmployee/
+// fetchExperienceByEmployee in employees.js), so no docs hook is needed here.
+function RowDocumentLink({ basePath, rowId, doc }) {
+  if (!doc) return null
+  return (
+    <button
+      type="button"
+      className="link-button"
+      style={{ marginLeft: 8 }}
+      onClick={() => downloadAuthedFile(`${basePath}/${rowId}/document/file`, doc.downloadFileName || doc.fileName)}
+    >
+      View
+    </button>
+  )
 }
 
 // Line1 / Line2 / City, State, Pincode / Landmark — one line each, matching
@@ -104,7 +136,11 @@ export default function MyProfile() {
 
   const myEmployee = employees.find((e) => e.id === user?.employeeId)
 
-  if (isLoading) return null
+  // Only blank the page on the very first load - refresh() (called after
+  // every save, to pull the just-written record back down) also flips
+  // isLoading true, and blanking the page here would unmount ProfileEditor
+  // for that instant, resetting the tab selection back to the first tab.
+  if (isLoading && employees.length === 0) return null
 
   if (!myEmployee) {
     return (
@@ -168,6 +204,9 @@ function ProfileEditor({ employee, cityOptions, onSaved }) {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const fileInputRef = useRef(null)
+  // One fetch shared by the edit-mode upload controls (PersonalDetailsFields)
+  // and the read-only summary view below, instead of each fetching its own copy.
+  const docs = usePersonalDocuments('/api/me/employee/documents')
 
   function set(field, value) {
     setState((s) => ({ ...s, [field]: value }))
@@ -294,10 +333,11 @@ function ProfileEditor({ employee, cityOptions, onSaved }) {
               value={state.personalDetails}
               onChange={(v) => set('personalDetails', v)}
               cityOptions={cityOptions}
-              basePath="/api/me/employee/documents"
+              docs={docs}
+              docsEnabled
             />
           ) : (
-            <div className="detail-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+            <div className="detail-grid" style={{ gridTemplateColumns: '1fr' }}>
               <section className="detail-card">
                 <h2>Personal details</h2>
                 {hasPersonalDetails ? (
@@ -317,19 +357,28 @@ function ProfileEditor({ employee, cityOptions, onSaved }) {
                     {employee.aadharNumber && (
                       <>
                         <dt>Aadhar no.</dt>
-                        <dd>{employee.aadharNumber}</dd>
+                        <dd>
+                          {employee.aadharNumber}
+                          <DocumentLink docs={docs} typeKey="aadhar" />
+                        </dd>
                       </>
                     )}
                     {employee.panNumber && (
                       <>
                         <dt>PAN no.</dt>
-                        <dd>{employee.panNumber}</dd>
+                        <dd>
+                          {employee.panNumber}
+                          <DocumentLink docs={docs} typeKey="pan" />
+                        </dd>
                       </>
                     )}
                     {employee.drivingLicenceNumber && (
                       <>
                         <dt>Driving licence no.</dt>
-                        <dd>{employee.drivingLicenceNumber}</dd>
+                        <dd>
+                          {employee.drivingLicenceNumber}
+                          <DocumentLink docs={docs} typeKey="driving-licence" />
+                        </dd>
                       </>
                     )}
                   </dl>
@@ -362,45 +411,13 @@ function ProfileEditor({ employee, cityOptions, onSaved }) {
     },
     {
       key: 'family',
-      label: 'Family & emergency contact',
+      label: 'Family details',
       content: (
         <div>
           {editing ? (
-            <>
-              <EmergencyContactsFields contacts={state.emergencyContacts} onChange={(v) => set('emergencyContacts', v)} />
-              <FamilyDetailsFields members={state.familyMembers} onChange={(v) => set('familyMembers', v)} />
-            </>
+            <FamilyDetailsFields members={state.familyMembers} onChange={(v) => set('familyMembers', v)} />
           ) : (
-            <div className="detail-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-              <section className="detail-card">
-                <h2>Emergency contact{(employee.emergencyContacts || []).length > 1 ? 's' : ''}</h2>
-                {(employee.emergencyContacts || []).length > 0 ? (
-                  <div className="detail-card-list">
-                    {employee.emergencyContacts.map((c, i) => (
-                      <dl className="detail-list" key={i}>
-                        <dt>Name</dt>
-                        <dd>{c.name}</dd>
-                        {c.relation && (
-                          <>
-                            <dt>Relation</dt>
-                            <dd>{c.relation}</dd>
-                          </>
-                        )}
-                        {c.phone && (
-                          <>
-                            <dt>Phone</dt>
-                            <dd>
-                              <a href={`tel:${c.phone}`}>{c.phone}</a>
-                            </dd>
-                          </>
-                        )}
-                      </dl>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="empty-state">Not on file yet.</p>
-                )}
-              </section>
+            <div className="detail-grid" style={{ gridTemplateColumns: '1fr' }}>
               <section className="detail-card">
                 <h2>Family details</h2>
                 {(employee.familyMembers || []).length > 0 ? (
@@ -437,12 +454,56 @@ function ProfileEditor({ employee, cityOptions, onSaved }) {
       ),
     },
     {
+      key: 'emergency',
+      label: 'Emergency contact',
+      content: (
+        <div>
+          {editing ? (
+            <EmergencyContactsFields contacts={state.emergencyContacts} onChange={(v) => set('emergencyContacts', v)} />
+          ) : (
+            <div className="detail-grid" style={{ gridTemplateColumns: '1fr' }}>
+              <section className="detail-card">
+                <h2>Emergency contact{(employee.emergencyContacts || []).length > 1 ? 's' : ''}</h2>
+                {(employee.emergencyContacts || []).length > 0 ? (
+                  <div className="detail-card-list">
+                    {employee.emergencyContacts.map((c, i) => (
+                      <dl className="detail-list" key={i}>
+                        <dt>Name</dt>
+                        <dd>{c.name}</dd>
+                        {c.relation && (
+                          <>
+                            <dt>Relation</dt>
+                            <dd>{c.relation}</dd>
+                          </>
+                        )}
+                        {c.phone && (
+                          <>
+                            <dt>Phone</dt>
+                            <dd>
+                              <a href={`tel:${c.phone}`}>{c.phone}</a>
+                            </dd>
+                          </>
+                        )}
+                      </dl>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="empty-state">Not on file yet.</p>
+                )}
+              </section>
+            </div>
+          )}
+          <TabActions {...actionsProps} />
+        </div>
+      ),
+    },
+    {
       key: 'education',
       label: 'Education',
       content: (
         <div>
           {editing ? (
-            <EducationFields entries={state.education} onChange={(v) => set('education', v)} />
+            <EducationFields entries={state.education} onChange={(v) => set('education', v)} basePath="/api/me/employee/education" />
           ) : (employee.education || []).length > 0 ? (
             <div className="detail-card-list">
               {employee.education.map((e, i) => (
@@ -467,6 +528,14 @@ function ProfileEditor({ employee, cityOptions, onSaved }) {
                       <dd>{e.yearOfPassing}</dd>
                     </>
                   )}
+                  {e.document && (
+                    <>
+                      <dt>Document</dt>
+                      <dd>
+                        <RowDocumentLink basePath="/api/me/employee/education" rowId={e.id} doc={e.document} />
+                      </dd>
+                    </>
+                  )}
                 </dl>
               ))}
             </div>
@@ -483,7 +552,7 @@ function ProfileEditor({ employee, cityOptions, onSaved }) {
       content: (
         <div>
           {editing ? (
-            <ExperienceFields entries={state.experience} onChange={(v) => set('experience', v)} />
+            <ExperienceFields entries={state.experience} onChange={(v) => set('experience', v)} basePath="/api/me/employee/experience" />
           ) : (employee.experience || []).length > 0 ? (
             <div className="detail-card-list">
               {employee.experience.map((x, i) => (
@@ -506,6 +575,14 @@ function ProfileEditor({ employee, cityOptions, onSaved }) {
                     <>
                       <dt>End date</dt>
                       <dd>{formatDate(x.endDate)}</dd>
+                    </>
+                  )}
+                  {x.document && (
+                    <>
+                      <dt>Document</dt>
+                      <dd>
+                        <RowDocumentLink basePath="/api/me/employee/experience" rowId={x.id} doc={x.document} />
+                      </dd>
                     </>
                   )}
                 </dl>

@@ -16,14 +16,8 @@ export const DOCUMENT_TYPES = {
 export const ALLOWED_EXTENSIONS = { '.pdf': 'application/pdf', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png' }
 export const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024 // 5MB
 
-function sanitizeForFilename(value) {
+export function sanitizeForFilename(value) {
   return String(value || '').replace(/[^a-zA-Z0-9]+/g, '') || 'x'
-}
-
-function timestamp() {
-  const d = new Date()
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`
 }
 
 // <MountLoc>\CompanyPortal\EmployeePersonalDetails\<EmployeeId>\
@@ -31,12 +25,22 @@ export function employeeDocsDir(employeeId) {
   return path.join(env.docsMountPath, 'CompanyPortal', 'EmployeePersonalDetails', String(employeeId))
 }
 
-// <EmployeeId>_<EmployeeName>_<DocumentName>_<YYYYMMDDHHMMSS>[_n].<ext> — the
-// optional _n only appears if that exact filename (same employee/type/second)
-// is already taken, so a rapid double-submit still can't silently overwrite
-// an existing upload.
-export function buildDocumentFileName(employeeId, employeeName, documentTypeKey, extension, disambiguator) {
+// <EmployeeId>_<EmployeeName>_<DocumentName>.<ext> — deliberately no
+// timestamp: each employee+document-type is a single slot (Doc ID is unique
+// per employee/type), not a history, so a re-upload replaces the file at
+// this same name rather than accumulating one per upload (see
+// saveEmployeeDocument, which deletes whatever was there first - covers an
+// extension change too, e.g. replacing a .pdf with a .jpg).
+export function buildDocumentFileName(employeeId, employeeName, documentTypeKey, extension) {
   const docLabel = DOCUMENT_TYPES[documentTypeKey]?.dbValue || documentTypeKey
-  const suffix = disambiguator ? `_${disambiguator}` : ''
-  return `${employeeId}_${sanitizeForFilename(employeeName)}_${docLabel}_${timestamp()}${suffix}${extension}`
+  return `${employeeId}_${sanitizeForFilename(employeeName)}_${docLabel}${extension}`
+}
+
+// <EmployeeId>_<EmployeeName>_<Label>-<RowId>.<ext> — for the one-document-
+// per-row attachments on Education/Experience entries (see saveRowDocument
+// in routes/employees.js), where a fixed DocumentType key doesn't apply
+// since there can be any number of rows. The row id keeps each entry's file
+// distinct without a timestamp.
+export function buildRowDocumentFileName(employeeId, employeeName, label, rowId, extension) {
+  return `${employeeId}_${sanitizeForFilename(employeeName)}_${label}-${rowId}${extension}`
 }

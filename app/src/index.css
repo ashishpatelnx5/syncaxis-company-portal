@@ -387,6 +387,21 @@ button, input, select {
   font-weight: 500;
 }
 
+/* Same look as .section-link, but reset for use on a <button> (e.g. a
+   document download trigger) instead of an <a>/<Link>, which has no such
+   default chrome to begin with. */
+.link-button {
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 500;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: underline;
+}
+
 .contact-emergency-toggle {
   border: none;
   background: none;

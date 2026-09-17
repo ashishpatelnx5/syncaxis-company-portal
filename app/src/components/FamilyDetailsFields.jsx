@@ -1,4 +1,5 @@
 import Icon from './Icon'
+import PhoneInput from './PhoneInput'
 import { FAMILY_RELATIONS } from '../data/familyRelations'
 
 export const MAX_FAMILY_MEMBERS = 6
@@ -49,15 +50,7 @@ export default function FamilyDetailsFields({ members, onChange }) {
               ))}
             </select>
           </label>
-          <label className="form-field">
-            <span>Contact no.</span>
-            <input
-              value={member.contactNo}
-              onChange={(e) => updateAt(index, { contactNo: e.target.value.replace(/\D/g, '').slice(0, 10) })}
-              inputMode="numeric"
-              maxLength={10}
-            />
-          </label>
+          <PhoneInput label="Contact no." value={member.contactNo} onChange={(v) => updateAt(index, { contactNo: v })} />
           {list.length > 1 && (
             <button type="button" className="btn-secondary repeatable-row-remove" onClick={() => removeRow(index)} aria-label="Remove this family member">
               <Icon name="trash" size={14} />

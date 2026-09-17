@@ -7,6 +7,7 @@ import {
   SELF_SERVICE_PERSONAL_DETAIL_SET_CLAUSE,
   archivePhotoToFile,
   bindPersonalDetailInputs,
+  downloadRowDocument,
   fetchDepartmentIdsByEmployee,
   listEmployeeDocuments,
   replaceEducation,
@@ -14,6 +15,7 @@ import {
   replaceExperience,
   replaceFamilyMembers,
   saveEmployeeDocument,
+  saveRowDocument,
   singleEmployeeLookups,
   toEmployee,
   upload,
@@ -132,6 +134,90 @@ router.get('/employee/documents/:documentId/file', async (req, res, next) => {
     const absolutePath = path.join(env.docsMountPath, ...doc.FilePath.split('/'))
     res.setHeader('Content-Type', doc.ContentType || 'application/octet-stream')
     res.download(absolutePath, doc.OriginalFileName || doc.FileName)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// --- Per-row documents on your own Education/Experience entries ------------
+
+router.post('/employee/education/:educationId/document', upload.single('file'), async (req, res, next) => {
+  try {
+    const pool = await getPool()
+    const own = await resolveOwnEmployeeId(pool, req)
+    if (!own) return res.status(400).json({ error: "Your account isn't linked to an employee record." })
+
+    const { error, document } = await saveRowDocument({
+      table: 'EmployeeEducation',
+      idColumn: 'EducationId',
+      label: 'Certificate',
+      employeeId: own.EmployeeId,
+      rowId: Number(req.params.educationId),
+      employeeName: own.Name,
+      file: req.file,
+    })
+    if (error) return res.status(400).json({ error })
+    res.status(201).json(document)
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.get('/employee/education/:educationId/document/file', async (req, res, next) => {
+  try {
+    const pool = await getPool()
+    const own = await resolveOwnEmployeeId(pool, req)
+    if (!own) return res.status(400).json({ error: "Your account isn't linked to an employee record." })
+
+    const ok = await downloadRowDocument({
+      table: 'EmployeeEducation',
+      idColumn: 'EducationId',
+      employeeId: own.EmployeeId,
+      rowId: Number(req.params.educationId),
+      res,
+    })
+    if (!ok) res.status(404).json({ error: 'Document not found.' })
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.post('/employee/experience/:experienceId/document', upload.single('file'), async (req, res, next) => {
+  try {
+    const pool = await getPool()
+    const own = await resolveOwnEmployeeId(pool, req)
+    if (!own) return res.status(400).json({ error: "Your account isn't linked to an employee record." })
+
+    const { error, document } = await saveRowDocument({
+      table: 'EmployeeExperience',
+      idColumn: 'ExperienceId',
+      label: 'Document',
+      employeeId: own.EmployeeId,
+      rowId: Number(req.params.experienceId),
+      employeeName: own.Name,
+      file: req.file,
+    })
+    if (error) return res.status(400).json({ error })
+    res.status(201).json(document)
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.get('/employee/experience/:experienceId/document/file', async (req, res, next) => {
+  try {
+    const pool = await getPool()
+    const own = await resolveOwnEmployeeId(pool, req)
+    if (!own) return res.status(400).json({ error: "Your account isn't linked to an employee record." })
+
+    const ok = await downloadRowDocument({
+      table: 'EmployeeExperience',
+      idColumn: 'ExperienceId',
+      employeeId: own.EmployeeId,
+      rowId: Number(req.params.experienceId),
+      res,
+    })
+    if (!ok) res.status(404).json({ error: 'Document not found.' })
   } catch (err) {
     next(err)
   }

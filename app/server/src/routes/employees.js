@@ -4,8 +4,15 @@ import path from 'path'
 import fs from 'fs/promises'
 import { getPool, sql } from '../config/db.js'
 import { env } from '../config/env.js'
-import { requireAuth, requirePermission } from '../middleware/auth.js'
-import { ALLOWED_EXTENSIONS, DOCUMENT_TYPES, MAX_FILE_SIZE_BYTES, buildDocumentFileName, employeeDocsDir } from '../config/docsStorage.js'
+import { accessFromIamUser, requireAuth, requirePermission } from '../middleware/auth.js'
+import {
+  ALLOWED_EXTENSIONS,
+  DOCUMENT_TYPES,
+  MAX_FILE_SIZE_BYTES,
+  buildDocumentFileName,
+  buildRowDocumentFileName,
+  employeeDocsDir,
+} from '../config/docsStorage.js'
 
 const router = Router()
 router.use(requireAuth)
@@ -73,6 +80,33 @@ export function toEmployee(
   }
 }
 
+const EMPTY_ADDRESS = { line1: '', line2: '', city: '', state: '', pincode: '', landmark: '' }
+
+// What a colleague (not this employee themself, and not an admin/HR holder
+// of the admin-employees permission) is allowed to see of someone else's
+// record in the directory: "Company details" (title, department, manager,
+// work email/phone, photo) plus the Emergency Contact list, per the
+// access-control spec — DOB/Aadhar/PAN/Driving Licence/blood group/
+// addresses/family/education/experience are personal data, visible only to
+// the employee themself or an admin/HR account (see GET '/' below, the only
+// endpoint that returns other people's records at all).
+function redactPersonalDetails(employee) {
+  return {
+    ...employee,
+    dateOfBirth: '',
+    aadharNumber: '',
+    panNumber: '',
+    drivingLicenceNumber: '',
+    bloodGroup: '',
+    currentAddress: { ...EMPTY_ADDRESS },
+    permanentAddress: { ...EMPTY_ADDRESS },
+    permanentSameAsCurrent: false,
+    familyMembers: [],
+    education: [],
+    experience: [],
+  }
+}
+
 // Wraps a single employee's already-known child-list values as the
 // {xByEmployee: Map} shape toEmployee() expects, for the POST/PUT/me.js
 // routes that just saved one employee and already have the fresh lists in
@@ -88,19 +122,27 @@ export function singleEmployeeLookups(employeeId, { departmentIds, emergencyCont
 }
 
 export function toEmployeeDocument(row) {
+  // The file on disk is named <empId>_<name>_<DocumentType>_<timestamp>.ext
+  // (see buildDocumentFileName) - shown to the user as just "<DocumentType>.ext"
+  // (fileName), dropping the employee-id/name prefix and timestamp suffix
+  // since they're redundant on screen (the type is already the field's own
+  // label). downloadFileName keeps the full on-disk name for the file the
+  // browser actually saves when downloaded.
   return {
     id: row.EmployeeDocumentId,
     documentType: row.DocumentType,
-    fileName: row.OriginalFileName || row.FileName,
+    fileName: `${row.DocumentType}${path.extname(row.FileName || '')}`,
+    downloadFileName: row.FileName,
     contentType: row.ContentType || '',
     fileSizeBytes: row.FileSizeBytes,
     uploadedAt: row.UploadedAt,
   }
 }
 
-// Latest row per DocumentType for this employee — EmployeeDocuments is
-// insert-only (see database/18_add_employee_personal_details.sql), so
-// "current" just means most recent.
+// One row per (EmployeeId, DocumentType) going forward (saveEmployeeDocument
+// removes the old row/file on re-upload) - the ROW_NUMBER "latest wins" here
+// just makes that resilient to any leftover duplicate rows from before that
+// behavior existed, rather than requiring a cleanup migration.
 export async function listEmployeeDocuments(pool, employeeId) {
   const result = await pool.request().input('employeeId', sql.Int, employeeId).query(`
     ;WITH Ranked AS (
@@ -112,16 +154,12 @@ export async function listEmployeeDocuments(pool, employeeId) {
   return result.recordset.map(toEmployeeDocument)
 }
 
-async function fileExists(p) {
-  try {
-    await fs.access(p)
-    return true
-  } catch {
-    return false
-  }
-}
-
-// Shared by the self-service (me.js) and admin (below) upload routes.
+// Shared by the self-service (me.js) and admin (below) upload routes. One
+// slot per employee+document-type (Doc ID is unique per pair) - a re-upload
+// removes whatever file/row was there before rather than accumulating one
+// per upload, so this also covers an extension change (e.g. replacing a
+// .pdf with a .jpg, which would otherwise leave the old file behind under a
+// different name).
 export async function saveEmployeeDocument({ employeeId, employeeName, documentTypeKey, file, uploadedByUserId }) {
   const typeDef = DOCUMENT_TYPES[documentTypeKey]
   if (!typeDef) return { error: 'Unknown document type.' }
@@ -129,21 +167,30 @@ export async function saveEmployeeDocument({ employeeId, employeeName, documentT
   const ext = path.extname(file.originalname).toLowerCase()
   if (!ALLOWED_EXTENSIONS[ext]) return { error: 'Only PDF, JPG, and PNG files are allowed.' }
 
+  const pool = await getPool()
+
+  const existingResult = await pool
+    .request()
+    .input('employeeId', sql.Int, employeeId)
+    .input('documentType', sql.NVarChar(30), typeDef.dbValue)
+    .query('SELECT FilePath FROM portal.EmployeeDocuments WHERE EmployeeId = @employeeId AND DocumentType = @documentType')
+  for (const existing of existingResult.recordset) {
+    await fs.unlink(path.join(env.docsMountPath, ...existing.FilePath.split('/'))).catch(() => {})
+  }
+  if (existingResult.recordset.length > 0) {
+    await pool
+      .request()
+      .input('employeeId', sql.Int, employeeId)
+      .input('documentType', sql.NVarChar(30), typeDef.dbValue)
+      .query('DELETE FROM portal.EmployeeDocuments WHERE EmployeeId = @employeeId AND DocumentType = @documentType')
+  }
+
   const dir = employeeDocsDir(employeeId)
   await fs.mkdir(dir, { recursive: true })
-
-  let disambiguator = 0
-  let fileName = buildDocumentFileName(employeeId, employeeName, documentTypeKey, ext)
-  let fullPath = path.join(dir, fileName)
-  while (await fileExists(fullPath)) {
-    disambiguator += 1
-    fileName = buildDocumentFileName(employeeId, employeeName, documentTypeKey, ext, disambiguator)
-    fullPath = path.join(dir, fileName)
-  }
-  await fs.writeFile(fullPath, file.buffer)
+  const fileName = buildDocumentFileName(employeeId, employeeName, documentTypeKey, ext)
+  await fs.writeFile(path.join(dir, fileName), file.buffer)
 
   const relativePath = ['CompanyPortal', 'EmployeePersonalDetails', String(employeeId), fileName].join('/')
-  const pool = await getPool()
   const result = await pool
     .request()
     .input('employeeId', sql.Int, employeeId)
@@ -335,72 +382,221 @@ export async function replaceFamilyMembers(transaction, employeeId, members) {
 }
 
 // Education/Experience are unbounded add-a-row lists (unlike Emergency
-// Contact/Family Details, which cap at 3/6) - no slice() here.
+// Contact/Family Details, which cap at 3/6). Each row can also carry its own
+// attached document (certificate, offer letter, etc. - see saveRowDocument
+// below), which is why - unlike Emergency Contact/Family Details, which
+// delete-and-reinsert the whole list on every save - replaceEducation/
+// replaceExperience upsert by id instead: a row's id has to stay stable
+// across saves, or a document uploaded against it would get orphaned the
+// next time the employee saves an unrelated field.
+
+function toRowDocument(row, label) {
+  if (!row.DocumentFileName) return null
+  return {
+    fileName: `${label}${path.extname(row.DocumentFileName)}`,
+    downloadFileName: row.DocumentFileName,
+    uploadedAt: row.DocumentUploadedAt,
+  }
+}
 
 export async function fetchEducationByEmployee(pool) {
-  const result = await pool.request().query('SELECT EmployeeId, Education, Institution, Stream, YearOfPassing FROM portal.EmployeeEducation ORDER BY EmployeeId, SortOrder')
+  const result = await pool.request().query(`
+    SELECT EducationId, EmployeeId, Education, Institution, Stream, YearOfPassing, DocumentFileName, DocumentUploadedAt
+    FROM portal.EmployeeEducation ORDER BY EmployeeId, SortOrder
+  `)
   const map = new Map()
   for (const row of result.recordset) {
     if (!map.has(row.EmployeeId)) map.set(row.EmployeeId, [])
     map.get(row.EmployeeId).push({
+      id: row.EducationId,
       education: row.Education,
       institution: row.Institution || '',
       stream: row.Stream || '',
       yearOfPassing: row.YearOfPassing || '',
+      document: toRowDocument(row, 'Certificate'),
     })
   }
   return map
 }
 
 export async function fetchExperienceByEmployee(pool) {
-  const result = await pool.request().query('SELECT EmployeeId, CompanyName, Designation, StartDate, EndDate FROM portal.EmployeeExperience ORDER BY EmployeeId, SortOrder')
+  const result = await pool.request().query(`
+    SELECT ExperienceId, EmployeeId, CompanyName, Designation, StartDate, EndDate, DocumentFileName, DocumentUploadedAt
+    FROM portal.EmployeeExperience ORDER BY EmployeeId, SortOrder
+  `)
   const map = new Map()
   for (const row of result.recordset) {
     if (!map.has(row.EmployeeId)) map.set(row.EmployeeId, [])
     map.get(row.EmployeeId).push({
+      id: row.ExperienceId,
       companyName: row.CompanyName,
       designation: row.Designation || '',
       startDate: row.StartDate ? row.StartDate.toISOString().slice(0, 10) : '',
       endDate: row.EndDate ? row.EndDate.toISOString().slice(0, 10) : '',
+      document: toRowDocument(row, 'Document'),
     })
   }
   return map
 }
 
 export async function replaceEducation(transaction, employeeId, entries) {
-  await new sql.Request(transaction).input('employeeId', sql.Int, employeeId).query('DELETE FROM portal.EmployeeEducation WHERE EmployeeId = @employeeId')
   const list = (entries || []).filter((e) => e?.education?.trim())
-  for (let i = 0; i < list.length; i++) {
-    await new sql.Request(transaction)
-      .input('employeeId', sql.Int, employeeId)
-      .input('education', sql.NVarChar(200), list[i].education.trim())
-      .input('institution', sql.NVarChar(200), list[i].institution || null)
-      .input('stream', sql.NVarChar(200), list[i].stream || null)
-      .input('yearOfPassing', sql.NVarChar(4), list[i].yearOfPassing || null)
-      .input('sortOrder', sql.Int, i)
-      .query(
-        'INSERT INTO portal.EmployeeEducation (EmployeeId, Education, Institution, Stream, YearOfPassing, SortOrder) VALUES (@employeeId, @education, @institution, @stream, @yearOfPassing, @sortOrder)',
-      )
+
+  const existingResult = await new sql.Request(transaction)
+    .input('employeeId', sql.Int, employeeId)
+    .query('SELECT EducationId, DocumentFilePath FROM portal.EmployeeEducation WHERE EmployeeId = @employeeId')
+  const existingById = new Map(existingResult.recordset.map((r) => [r.EducationId, r]))
+  const keepIds = new Set(list.map((e) => e.id).filter((id) => existingById.has(id)))
+
+  for (const [id, row] of existingById) {
+    if (keepIds.has(id)) continue
+    if (row.DocumentFilePath) await fs.unlink(path.join(env.docsMountPath, ...row.DocumentFilePath.split('/'))).catch(() => {})
+    await new sql.Request(transaction).input('id', sql.Int, id).query('DELETE FROM portal.EmployeeEducation WHERE EducationId = @id')
   }
-  return list.map((e) => ({ education: e.education.trim(), institution: e.institution || '', stream: e.stream || '', yearOfPassing: e.yearOfPassing || '' }))
+
+  for (let i = 0; i < list.length; i++) {
+    const e = list[i]
+    const request = new sql.Request(transaction)
+      .input('education', sql.NVarChar(200), e.education.trim())
+      .input('institution', sql.NVarChar(200), e.institution || null)
+      .input('stream', sql.NVarChar(200), e.stream || null)
+      .input('yearOfPassing', sql.NVarChar(4), e.yearOfPassing || null)
+      .input('sortOrder', sql.Int, i)
+    if (keepIds.has(e.id)) {
+      await request.input('id', sql.Int, e.id).query(`
+        UPDATE portal.EmployeeEducation SET Education = @education, Institution = @institution, Stream = @stream,
+          YearOfPassing = @yearOfPassing, SortOrder = @sortOrder WHERE EducationId = @id
+      `)
+    } else {
+      await request.input('employeeId', sql.Int, employeeId).query(`
+        INSERT INTO portal.EmployeeEducation (EmployeeId, Education, Institution, Stream, YearOfPassing, SortOrder)
+        VALUES (@employeeId, @education, @institution, @stream, @yearOfPassing, @sortOrder)
+      `)
+    }
+  }
+
+  const freshResult = await new sql.Request(transaction).input('employeeId', sql.Int, employeeId).query(`
+    SELECT EducationId, Education, Institution, Stream, YearOfPassing, DocumentFileName, DocumentUploadedAt
+    FROM portal.EmployeeEducation WHERE EmployeeId = @employeeId ORDER BY SortOrder
+  `)
+  return freshResult.recordset.map((row) => ({
+    id: row.EducationId,
+    education: row.Education,
+    institution: row.Institution || '',
+    stream: row.Stream || '',
+    yearOfPassing: row.YearOfPassing || '',
+    document: toRowDocument(row, 'Certificate'),
+  }))
 }
 
 export async function replaceExperience(transaction, employeeId, entries) {
-  await new sql.Request(transaction).input('employeeId', sql.Int, employeeId).query('DELETE FROM portal.EmployeeExperience WHERE EmployeeId = @employeeId')
   const list = (entries || []).filter((e) => e?.companyName?.trim())
-  for (let i = 0; i < list.length; i++) {
-    await new sql.Request(transaction)
-      .input('employeeId', sql.Int, employeeId)
-      .input('companyName', sql.NVarChar(200), list[i].companyName.trim())
-      .input('designation', sql.NVarChar(200), list[i].designation || null)
-      .input('startDate', sql.Date, list[i].startDate || null)
-      .input('endDate', sql.Date, list[i].endDate || null)
-      .input('sortOrder', sql.Int, i)
-      .query(
-        'INSERT INTO portal.EmployeeExperience (EmployeeId, CompanyName, Designation, StartDate, EndDate, SortOrder) VALUES (@employeeId, @companyName, @designation, @startDate, @endDate, @sortOrder)',
-      )
+
+  const existingResult = await new sql.Request(transaction)
+    .input('employeeId', sql.Int, employeeId)
+    .query('SELECT ExperienceId, DocumentFilePath FROM portal.EmployeeExperience WHERE EmployeeId = @employeeId')
+  const existingById = new Map(existingResult.recordset.map((r) => [r.ExperienceId, r]))
+  const keepIds = new Set(list.map((e) => e.id).filter((id) => existingById.has(id)))
+
+  for (const [id, row] of existingById) {
+    if (keepIds.has(id)) continue
+    if (row.DocumentFilePath) await fs.unlink(path.join(env.docsMountPath, ...row.DocumentFilePath.split('/'))).catch(() => {})
+    await new sql.Request(transaction).input('id', sql.Int, id).query('DELETE FROM portal.EmployeeExperience WHERE ExperienceId = @id')
   }
-  return list.map((e) => ({ companyName: e.companyName.trim(), designation: e.designation || '', startDate: e.startDate || '', endDate: e.endDate || '' }))
+
+  for (let i = 0; i < list.length; i++) {
+    const e = list[i]
+    const request = new sql.Request(transaction)
+      .input('companyName', sql.NVarChar(200), e.companyName.trim())
+      .input('designation', sql.NVarChar(200), e.designation || null)
+      .input('startDate', sql.Date, e.startDate || null)
+      .input('endDate', sql.Date, e.endDate || null)
+      .input('sortOrder', sql.Int, i)
+    if (keepIds.has(e.id)) {
+      await request.input('id', sql.Int, e.id).query(`
+        UPDATE portal.EmployeeExperience SET CompanyName = @companyName, Designation = @designation,
+          StartDate = @startDate, EndDate = @endDate, SortOrder = @sortOrder WHERE ExperienceId = @id
+      `)
+    } else {
+      await request.input('employeeId', sql.Int, employeeId).query(`
+        INSERT INTO portal.EmployeeExperience (EmployeeId, CompanyName, Designation, StartDate, EndDate, SortOrder)
+        VALUES (@employeeId, @companyName, @designation, @startDate, @endDate, @sortOrder)
+      `)
+    }
+  }
+
+  const freshResult = await new sql.Request(transaction).input('employeeId', sql.Int, employeeId).query(`
+    SELECT ExperienceId, CompanyName, Designation, StartDate, EndDate, DocumentFileName, DocumentUploadedAt
+    FROM portal.EmployeeExperience WHERE EmployeeId = @employeeId ORDER BY SortOrder
+  `)
+  return freshResult.recordset.map((row) => ({
+    id: row.ExperienceId,
+    companyName: row.CompanyName,
+    designation: row.Designation || '',
+    startDate: row.StartDate ? row.StartDate.toISOString().slice(0, 10) : '',
+    endDate: row.EndDate ? row.EndDate.toISOString().slice(0, 10) : '',
+    document: toRowDocument(row, 'Document'),
+  }))
+}
+
+// Shared by the per-row upload routes below (admin + self, education +
+// experience) - deletes whatever file was previously attached to this row
+// (if any) before writing the new one, same one-slot-per-thing rule as
+// saveEmployeeDocument.
+export async function saveRowDocument({ table, idColumn, label, employeeId, rowId, employeeName, file }) {
+  if (!file) return { error: 'No file was uploaded.' }
+  const ext = path.extname(file.originalname).toLowerCase()
+  if (!ALLOWED_EXTENSIONS[ext]) return { error: 'Only PDF, JPG, and PNG files are allowed.' }
+
+  const pool = await getPool()
+  const existingResult = await pool
+    .request()
+    .input('id', sql.Int, rowId)
+    .input('employeeId', sql.Int, employeeId)
+    .query(`SELECT DocumentFilePath FROM portal.${table} WHERE ${idColumn} = @id AND EmployeeId = @employeeId`)
+  const existing = existingResult.recordset[0]
+  if (!existing) return { error: 'Entry not found.' }
+  if (existing.DocumentFilePath) {
+    await fs.unlink(path.join(env.docsMountPath, ...existing.DocumentFilePath.split('/'))).catch(() => {})
+  }
+
+  const dir = employeeDocsDir(employeeId)
+  await fs.mkdir(dir, { recursive: true })
+  const fileName = buildRowDocumentFileName(employeeId, employeeName, label, rowId, ext)
+  await fs.writeFile(path.join(dir, fileName), file.buffer)
+  const relativePath = ['CompanyPortal', 'EmployeePersonalDetails', String(employeeId), fileName].join('/')
+
+  await pool
+    .request()
+    .input('id', sql.Int, rowId)
+    .input('fileName', sql.NVarChar(300), fileName)
+    .input('filePath', sql.NVarChar(500), relativePath)
+    .input('originalFileName', sql.NVarChar(300), file.originalname)
+    .input('contentType', sql.NVarChar(100), file.mimetype)
+    .input('fileSizeBytes', sql.Int, file.size).query(`
+      UPDATE portal.${table} SET
+        DocumentFileName = @fileName, DocumentFilePath = @filePath, DocumentOriginalFileName = @originalFileName,
+        DocumentContentType = @contentType, DocumentFileSizeBytes = @fileSizeBytes, DocumentUploadedAt = SYSUTCDATETIME()
+      WHERE ${idColumn} = @id
+    `)
+
+  return { document: { fileName: `${label}${ext}`, downloadFileName: fileName, uploadedAt: new Date().toISOString() } }
+}
+
+// Shared by the per-row download routes below.
+export async function downloadRowDocument({ table, idColumn, employeeId, rowId, res }) {
+  const pool = await getPool()
+  const result = await pool
+    .request()
+    .input('id', sql.Int, rowId)
+    .input('employeeId', sql.Int, employeeId)
+    .query(`SELECT DocumentFileName, DocumentFilePath, DocumentOriginalFileName, DocumentContentType FROM portal.${table} WHERE ${idColumn} = @id AND EmployeeId = @employeeId`)
+  const row = result.recordset[0]
+  if (!row || !row.DocumentFilePath) return false
+  const absolutePath = path.join(env.docsMountPath, ...row.DocumentFilePath.split('/'))
+  res.setHeader('Content-Type', row.DocumentContentType || 'application/octet-stream')
+  res.download(absolutePath, row.DocumentOriginalFileName || row.DocumentFileName)
+  return true
 }
 
 router.get('/', async (req, res, next) => {
@@ -415,10 +611,20 @@ router.get('/', async (req, res, next) => {
         fetchEducationByEmployee(pool),
         fetchExperienceByEmployee(pool),
       ])
+
+    // Everyone sees the full directory (names/titles/departments/contact/
+    // emergency contact), but personal details (DOB, KYC numbers, addresses,
+    // family, education, experience) only go out for your own record, or
+    // for everyone if you hold the admin-employees permission (Admin/HR).
+    const access = accessFromIamUser(req.session)
+    const canManage = access.isAdmin || access.pages.includes('admin-employees')
+    const ownEmployeeId = employeesResult.recordset.find((row) => row.AuthUserId === req.user.sub)?.EmployeeId
+
     res.json(
-      employeesResult.recordset.map((row) =>
-        toEmployee(row, { departmentIdsByEmployee, emergencyContactsByEmployee, familyMembersByEmployee, educationByEmployee, experienceByEmployee }),
-      ),
+      employeesResult.recordset.map((row) => {
+        const employee = toEmployee(row, { departmentIdsByEmployee, emergencyContactsByEmployee, familyMembersByEmployee, educationByEmployee, experienceByEmployee })
+        return canManage || employee.id === ownEmployeeId ? employee : redactPersonalDetails(employee)
+      }),
     )
   } catch (err) {
     next(err)
@@ -653,6 +859,86 @@ router.get('/:id/documents/:documentId/file', requireAdminEmployees, async (req,
     const absolutePath = path.join(env.docsMountPath, ...doc.FilePath.split('/'))
     res.setHeader('Content-Type', doc.ContentType || 'application/octet-stream')
     res.download(absolutePath, doc.OriginalFileName || doc.FileName)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// --- Per-row documents on Education/Experience entries (admin) -------------
+
+router.post('/:id/education/:educationId/document', requireAdminEmployees, upload.single('file'), async (req, res, next) => {
+  try {
+    const employeeId = Number(req.params.id)
+    const pool = await getPool()
+    const employeeResult = await pool.request().input('id', sql.Int, employeeId).query('SELECT Name FROM portal.Employees WHERE EmployeeId = @id')
+    const employee = employeeResult.recordset[0]
+    if (!employee) return res.status(404).json({ error: 'Employee not found.' })
+
+    const { error, document } = await saveRowDocument({
+      table: 'EmployeeEducation',
+      idColumn: 'EducationId',
+      label: 'Certificate',
+      employeeId,
+      rowId: Number(req.params.educationId),
+      employeeName: employee.Name,
+      file: req.file,
+    })
+    if (error) return res.status(400).json({ error })
+    res.status(201).json(document)
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.get('/:id/education/:educationId/document/file', requireAdminEmployees, async (req, res, next) => {
+  try {
+    const ok = await downloadRowDocument({
+      table: 'EmployeeEducation',
+      idColumn: 'EducationId',
+      employeeId: Number(req.params.id),
+      rowId: Number(req.params.educationId),
+      res,
+    })
+    if (!ok) res.status(404).json({ error: 'Document not found.' })
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.post('/:id/experience/:experienceId/document', requireAdminEmployees, upload.single('file'), async (req, res, next) => {
+  try {
+    const employeeId = Number(req.params.id)
+    const pool = await getPool()
+    const employeeResult = await pool.request().input('id', sql.Int, employeeId).query('SELECT Name FROM portal.Employees WHERE EmployeeId = @id')
+    const employee = employeeResult.recordset[0]
+    if (!employee) return res.status(404).json({ error: 'Employee not found.' })
+
+    const { error, document } = await saveRowDocument({
+      table: 'EmployeeExperience',
+      idColumn: 'ExperienceId',
+      label: 'Document',
+      employeeId,
+      rowId: Number(req.params.experienceId),
+      employeeName: employee.Name,
+      file: req.file,
+    })
+    if (error) return res.status(400).json({ error })
+    res.status(201).json(document)
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.get('/:id/experience/:experienceId/document/file', requireAdminEmployees, async (req, res, next) => {
+  try {
+    const ok = await downloadRowDocument({
+      table: 'EmployeeExperience',
+      idColumn: 'ExperienceId',
+      employeeId: Number(req.params.id),
+      rowId: Number(req.params.experienceId),
+      res,
+    })
+    if (!ok) res.status(404).json({ error: 'Document not found.' })
   } catch (err) {
     next(err)
   }

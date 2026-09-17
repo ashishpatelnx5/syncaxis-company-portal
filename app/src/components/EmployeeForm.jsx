@@ -11,6 +11,7 @@ import ProfileTabsShell from './ProfileTabsShell'
 import { useDepartments } from '../context/useDepartments'
 import { useEmployees } from '../context/useEmployees'
 import { useJobDescriptions } from '../context/useJobDescriptions'
+import usePersonalDocuments from '../hooks/usePersonalDocuments'
 import { fileToResizedDataUrl } from '../utils/image'
 import { getAncestorChain, getDescendantIds, getDirectReports } from '../utils/org'
 
@@ -74,6 +75,10 @@ export default function EmployeeForm({ employee, onClose }) {
     const cities = employees.flatMap((e) => [e.currentAddress?.city, e.permanentAddress?.city]).filter(Boolean)
     return [...new Set(cities)].sort()
   }, [employees])
+  // undefined basePath for a not-yet-saved new employee - the hook no-ops
+  // until there's an id to attach uploads to (see PersonalDetailsFields'
+  // "Save first to upload" fallback).
+  const docs = usePersonalDocuments(isNew ? undefined : `/api/employees/${employee.id}/documents`)
   const [photoError, setPhotoError] = useState('')
   const [submitError, setSubmitError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -299,29 +304,30 @@ export default function EmployeeForm({ employee, onClose }) {
           value={personalDetails}
           onChange={setPersonalDetails}
           cityOptions={cityOptions}
-          basePath={isNew ? undefined : `/api/employees/${employee.id}/documents`}
+          docs={docs}
+          docsEnabled={!isNew}
         />
       ),
     },
     {
       key: 'family',
-      label: 'Family & emergency contact',
-      content: (
-        <div>
-          <EmergencyContactsFields contacts={emergencyContacts} onChange={setEmergencyContacts} />
-          <FamilyDetailsFields members={familyMembers} onChange={setFamilyMembers} />
-        </div>
-      ),
+      label: 'Family details',
+      content: <FamilyDetailsFields members={familyMembers} onChange={setFamilyMembers} />,
+    },
+    {
+      key: 'emergency',
+      label: 'Emergency contact',
+      content: <EmergencyContactsFields contacts={emergencyContacts} onChange={setEmergencyContacts} />,
     },
     {
       key: 'education',
       label: 'Education',
-      content: <EducationFields entries={education} onChange={setEducation} />,
+      content: <EducationFields entries={education} onChange={setEducation} basePath={isNew ? undefined : `/api/employees/${employee.id}/education`} />,
     },
     {
       key: 'experience',
       label: 'Professional experience',
-      content: <ExperienceFields entries={experience} onChange={setExperience} />,
+      content: <ExperienceFields entries={experience} onChange={setExperience} basePath={isNew ? undefined : `/api/employees/${employee.id}/experience`} />,
     },
   ]
 

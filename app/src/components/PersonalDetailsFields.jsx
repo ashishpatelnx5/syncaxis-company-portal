@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import Icon from './Icon'
-import usePersonalDocuments, { DOCUMENT_TYPES } from '../hooks/usePersonalDocuments'
+import { DOCUMENT_TYPES } from '../hooks/usePersonalDocuments'
 import { INDIAN_STATES } from '../data/indianStates'
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
@@ -24,16 +24,12 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+// No file name shown - the "View" button next to this already opens it;
+// this is just the upload state (nothing on file / when it was uploaded).
 function DocumentStatus({ doc, docsEnabled }) {
   if (!docsEnabled) return <p className="page-subtitle" style={{ margin: 0 }}>Save first to upload</p>
   if (!doc) return <p className="page-subtitle" style={{ margin: 0 }}>Not uploaded yet</p>
-  return (
-    <p className="page-subtitle" style={{ margin: 0 }}>
-      <span style={{ color: 'var(--text)' }}>{doc.fileName}</span>
-      <br />
-      Uploaded {formatDate(doc.uploadedAt)}
-    </p>
-  )
+  return <p className="page-subtitle" style={{ margin: 0 }}>Uploaded {formatDate(doc.uploadedAt)}</p>
 }
 
 // Same width for every identity field's number input regardless of its own
@@ -141,10 +137,11 @@ function AddressFields({ value, onChange, cityOptions, idPrefix }) {
 // renders the "Personal details" and "Address" panes. Date of Joining is
 // deliberately NOT here - it's admin-set only (like Title/Manager), grouped
 // with Photo/Mobile/Email in each form's own "Employee details" pane instead.
-export default function PersonalDetailsFields({ value, onChange, cityOptions = [], basePath }) {
-  const docs = usePersonalDocuments(basePath)
-  const docsEnabled = Boolean(basePath)
-
+// docs/docsEnabled come from the caller's own usePersonalDocuments(basePath)
+// call rather than one made here, so the read-only summary view (which
+// needs the same document links next to Aadhar/PAN/DL) can share it instead
+// of fetching twice.
+export default function PersonalDetailsFields({ value, onChange, cityOptions = [], docs, docsEnabled }) {
   function set(field, fieldValue) {
     onChange({ ...value, [field]: fieldValue })
   }
