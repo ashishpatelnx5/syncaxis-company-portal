@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { getPool, sql } from '../config/db.js'
-import { requireAnyPermission, requireAuth } from '../middleware/auth.js'
+import { accessFromIamUser, requireAnyPermission, requireAuth } from '../middleware/auth.js'
 
 const router = Router()
 router.use(requireAuth)
@@ -9,6 +9,21 @@ router.use(requireAuth)
 // delete an entry outright.
 const requireComplaints = requireAnyPermission(['page', 'complaints'], ['page', 'admin-complaints'])
 const requireAdminComplaints = requireAnyPermission(['page', 'admin-complaints'])
+
+// admin-complaints (or full-access admin) is the only way to see/edit
+// everyone's entries — a plain 'complaints' grant is scoped to your own,
+// mirroring the frontend's Complaints.jsx (non-admin view) vs
+// ComplaintsAdmin.jsx split.
+function canSeeAll(req) {
+  const access = accessFromIamUser(req.session)
+  return access.isAdmin || access.pages.includes('admin-complaints')
+}
+
+async function resolveOwnEmployeeId(req) {
+  const pool = await getPool()
+  const result = await pool.request().input('id', sql.Int, req.user.sub).query('SELECT EmployeeId FROM portal.Employees WHERE AuthUserId = @id')
+  return result.recordset[0]?.EmployeeId ?? null
+}
 
 const CATEGORIES = ['Complaint', 'Issue', 'Feedback']
 const STATUSES = ['Open', 'In Progress', 'Resolved', 'Closed']
@@ -47,10 +62,18 @@ async function fetchHistoryByComplaint(pool) {
 router.get('/', requireComplaints, async (req, res, next) => {
   try {
     const pool = await getPool()
-    const [complaintsResult, historyByComplaint] = await Promise.all([
-      pool.request().query('SELECT * FROM portal.Complaints ORDER BY CreatedAt DESC'),
-      fetchHistoryByComplaint(pool),
-    ])
+    const seeAll = canSeeAll(req)
+    const ownEmployeeId = seeAll ? null : await resolveOwnEmployeeId(req)
+
+    const complaintsRequest = pool.request()
+    let query = 'SELECT * FROM portal.Complaints'
+    if (!seeAll) {
+      complaintsRequest.input('employeeId', sql.Int, ownEmployeeId)
+      query += ' WHERE EmployeeId = @employeeId'
+    }
+    query += ' ORDER BY CreatedAt DESC'
+
+    const [complaintsResult, historyByComplaint] = await Promise.all([complaintsRequest.query(query), fetchHistoryByComplaint(pool)])
     res.json(
       complaintsResult.recordset.map((row) => ({
         ...toComplaint(row),
@@ -74,6 +97,16 @@ router.post('/', requireComplaints, async (req, res, next) => {
     if (!subject) return res.status(400).json({ error: 'Subject is required.' })
     if (!description) return res.status(400).json({ error: 'Description is required.' })
     const status = STATUSES.includes(body.status) ? body.status : 'Open'
+
+    // Non-admins can only ever raise an entry as themselves — the "Raised
+    // by" reassignment field is admin-only in the UI (ComplaintForm's
+    // showAdminFields), so enforce the same thing server-side.
+    if (!canSeeAll(req)) {
+      const ownEmployeeId = await resolveOwnEmployeeId(req)
+      if (!ownEmployeeId || Number(body.employeeId) !== ownEmployeeId) {
+        return res.status(403).json({ error: 'You can only submit entries as yourself.' })
+      }
+    }
 
     await transaction.begin()
 
@@ -129,11 +162,24 @@ router.put('/:id', requireComplaints, async (req, res, next) => {
 
     const existing = await new sql.Request(transaction)
       .input('id', sql.Int, req.params.id)
-      .query('SELECT Status FROM portal.Complaints WHERE ComplaintId = @id')
+      .query('SELECT Status, EmployeeId FROM portal.Complaints WHERE ComplaintId = @id')
     if (existing.recordset.length === 0) {
       await transaction.rollback()
       return res.status(404).json({ error: 'Entry not found.' })
     }
+
+    // Non-admins may only edit their own entries, and can't reassign "Raised
+    // by" to someone else — both are admin-only in the UI, enforced here too.
+    if (!canSeeAll(req)) {
+      const ownEmployeeId = await resolveOwnEmployeeId(req)
+      const belongsToCaller = ownEmployeeId != null && existing.recordset[0].EmployeeId === ownEmployeeId
+      const keepsOwner = Number(body.employeeId) === existing.recordset[0].EmployeeId
+      if (!belongsToCaller || !keepsOwner) {
+        await transaction.rollback()
+        return res.status(403).json({ error: 'You can only edit your own entries.' })
+      }
+    }
+
     const statusChanged = existing.recordset[0].Status !== body.status
 
     // Same OUTPUT-vs-trigger restriction as the insert above — plain

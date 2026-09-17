@@ -35,7 +35,7 @@ function readAppManifest() {
 
 // admin-* pages are 'manage', everything else is 'view' — matches every key
 // currently in permissions.js, including the admin-leads-tracker page kept
-// for the tile now merged into 'inquiry' (see the apps.js entry below).
+// for the tile now merged into 'leads-tracker' (see the apps.js entry below).
 function buildManifest() {
   const permissions = pagePermissions.map(({ key, label }) => ({
     key: `portal.${key}.${key.startsWith('admin') ? 'manage' : 'view'}`,
