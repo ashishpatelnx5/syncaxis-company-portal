@@ -21,14 +21,20 @@ if (!IAM_API_URL) throw new Error('Missing IAM_API_URL')
 
 // apps.js reads import.meta.env.VITE_* (Vite-only) at module scope, so a
 // plain Node script can't import it directly — its ids/names are parsed out
-// of the source text instead, without executing it.
+// of the source text instead, without executing it. adminOnly apps (e.g.
+// IAM Admin) are skipped - they're gated on isAdmin directly (see Home.jsx /
+// Applications.jsx), not on a grantable permission, so they have no
+// 'portal.<id>.access' key to register.
 function readAppManifest() {
   const src = fs.readFileSync(path.resolve(__dirname, '../../src/data/apps.js'), 'utf8')
   const apps = []
-  const blockRe = /id:\s*'([a-z0-9-]+)'[\s\S]*?name:\s*'([^']+)'/g
+  const blockRe = /\{\s*id:\s*'([a-z0-9-]+)'[\s\S]*?\n {2}\}/g
   let match
   while ((match = blockRe.exec(src))) {
-    apps.push({ id: match[1], name: match[2] })
+    const block = match[0]
+    if (/adminOnly:\s*true/.test(block)) continue
+    const name = block.match(/name:\s*'([^']+)'/)?.[1]
+    if (name) apps.push({ id: match[1], name })
   }
   return apps
 }

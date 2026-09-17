@@ -46,4 +46,24 @@ export const apps = [
     // here which are just external systems with their own separate logins.
     ssoHandoff: true,
   },
+  {
+    id: 'iam-admin',
+    name: 'IAM Admin',
+    description: 'Manage users, roles, and permissions',
+    // Points straight at the login route (not just the origin) - that's the
+    // one route on syncaxis-iam's side that reads ?ssoCode and exchanges it,
+    // and it needs the query string to survive, unlike '/' which just
+    // redirects to the (auth-gated) dashboard and would drop it.
+    url: import.meta.env.VITE_IAM_ADMIN_URL || 'http://localhost:8054/admin-ui/login',
+    icon: 'shield',
+    // Opts into the SSO handoff in AppCard.jsx instead of a plain link -
+    // syncaxis-iam is the identity provider itself, so its admin console
+    // exchanges the handoff code in-process rather than via a separate
+    // backend calling back into Portal, unlike the other ssoHandoff apps.
+    ssoHandoff: true,
+    // Not grantable via the permission matrix like the apps above - visible
+    // only to full-access admins (see Home.jsx / Applications.jsx), so it's
+    // excluded from registerIamPermissions.js's manifest too.
+    adminOnly: true,
+  },
 ]
