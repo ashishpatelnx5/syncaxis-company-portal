@@ -23,4 +23,6 @@ export const env = {
   // auth to it and translates the response back into its own shape (see
   // middleware/auth.js). No trailing slash expected.
   iamApiUrl: required('IAM_API_URL'),
+  // Base folder for employee personal documents — see config/docsStorage.js.
+  docsMountPath: required('DOCS_MOUNT_PATH'),
 }

@@ -326,8 +326,17 @@ button, input, select {
   font-size: 14px;
   font-weight: 500;
   color: var(--text-muted);
+  border: none;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
+  /* Reset browser default <button> chrome (background/border/radius) so a
+     <button className="tab-link"> (ProfileTabsShell) looks identical to the
+     <Link className="tab-link"> this was originally built for (Organisation
+     sub-nav) - anchors have no such defaults, so this is a no-op there. */
+  background: none;
+  border-radius: 0;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 .tab-link:hover {
@@ -337,6 +346,18 @@ button, input, select {
 .tab-link.active {
   color: var(--accent);
   border-bottom-color: var(--accent);
+}
+
+.profile-tabs-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.icon-flip {
+  transform: rotate(180deg);
 }
 
 .page-header h1 {
@@ -802,6 +823,20 @@ a.mini-person:hover .mini-avatar {
 .detail-card h2 {
   font-size: 15px;
   margin-bottom: 12px;
+}
+
+/* Multiple entries in one card (several emergency contacts/family members) -
+   each its own .detail-list, separated by a divider rather than running
+   together. */
+.detail-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detail-card-list dl:not(:first-child) {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 
 .detail-list {
@@ -1514,6 +1549,25 @@ a.mini-person:hover .mini-avatar {
   min-width: 140px;
 }
 
+.identity-field-row {
+  align-items: flex-end;
+  margin-bottom: 14px;
+}
+
+.identity-field-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.repeatable-row {
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.repeatable-row-remove {
+  flex: 0 0 auto;
+}
+
 .avatar-upload {
   display: flex;
   align-items: center;
@@ -1789,6 +1843,28 @@ a.mini-person:hover .mini-avatar {
 .login-submit:hover {
   background: var(--login-steel);
   border-color: var(--login-steel);
+}
+
+.phone-input {
+  display: flex;
+}
+
+.phone-input-prefix {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 13.5px;
+}
+
+.phone-input input {
+  flex: 1;
+  min-width: 0;
+  border-radius: 0 8px 8px 0 !important;
 }
 
 .password-field {

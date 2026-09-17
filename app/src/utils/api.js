@@ -30,7 +30,11 @@ export class ApiError extends Error {
 }
 
 export async function apiFetch(path, { method = 'GET', body, auth = true } = {}) {
-  const headers = { 'Content-Type': 'application/json' }
+  // FormData (file uploads) must NOT get a JSON content-type or be
+  // stringified — the browser sets its own multipart boundary automatically
+  // as long as Content-Type is left unset here.
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
+  const headers = isFormData ? {} : { 'Content-Type': 'application/json' }
   if (auth) {
     const token = getToken()
     if (token) headers.Authorization = `Bearer ${token}`
@@ -39,7 +43,7 @@ export async function apiFetch(path, { method = 'GET', body, auth = true } = {})
   const res = await fetch(`${API_URL}${path}`, {
     method,
     headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: isFormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
   })
 
   if (res.status === 204) return null
@@ -57,4 +61,27 @@ export async function apiFetch(path, { method = 'GET', body, auth = true } = {})
   }
 
   return data
+}
+
+// A plain <a href> can't carry the Authorization header, so a protected file
+// download has to go through fetch — this grabs it as a blob and triggers a
+// normal browser save via a throwaway object URL/anchor.
+export async function downloadAuthedFile(path, suggestedFileName) {
+  const token = getToken()
+  const res = await fetch(`${API_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!res.ok) {
+    if (res.status === 401) setToken(null)
+    throw new ApiError(`Could not download that file (${res.status}).`, res.status)
+  }
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = suggestedFileName || ''
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
 }

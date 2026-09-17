@@ -1,20 +1,106 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Avatar from '../components/Avatar'
+import EducationFields from '../components/EducationFields'
+import EmergencyContactsFields from '../components/EmergencyContactsFields'
+import ExperienceFields from '../components/ExperienceFields'
+import FamilyDetailsFields from '../components/FamilyDetailsFields'
 import Icon from '../components/Icon'
+import PersonalDetailsFields, { emptyPersonalDetails } from '../components/PersonalDetailsFields'
+import PhoneInput from '../components/PhoneInput'
 import PhotoLightbox from '../components/PhotoLightbox'
+import ProfileTabsShell from '../components/ProfileTabsShell'
 import { useAuth } from '../context/useAuth'
 import { useDepartments } from '../context/useDepartments'
 import { useEmployees } from '../context/useEmployees'
 import { apiFetch } from '../utils/api'
 import { fileToResizedDataUrl } from '../utils/image'
 
+function useCityOptions(employees) {
+  return useMemo(() => {
+    const cities = employees.flatMap((e) => [e.currentAddress?.city, e.permanentAddress?.city]).filter(Boolean)
+    return [...new Set(cities)].sort()
+  }, [employees])
+}
+
+function formatDate(iso) {
+  if (!iso) return null
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+// Line1 / Line2 / City, State, Pincode / Landmark — one line each, matching
+// how the address is entered in the edit form.
+function AddressDisplay({ address }) {
+  if (!address) return <p className="empty-state">Not on file yet.</p>
+  const cityStatePincode = [address.city, address.state, address.pincode].filter(Boolean).join(', ')
+  const hasContent = address.line1 || address.line2 || cityStatePincode || address.landmark
+  if (!hasContent) return <p className="empty-state">Not on file yet.</p>
+
+  return (
+    <div>
+      {address.line1 && <p style={{ margin: 0 }}>{address.line1}</p>}
+      {address.line2 && <p style={{ margin: 0 }}>{address.line2}</p>}
+      {cityStatePincode && <p style={{ margin: 0 }}>{cityStatePincode}</p>}
+      {address.landmark && <p style={{ margin: 0 }}>{address.landmark}</p>}
+    </div>
+  )
+}
+
+// Same Edit / Cancel+Save trio on every tab (per-tab "edit + save" controls)
+// even though they all operate on the one shared `editing` flag below -
+// clicking Edit on any tab unlocks every tab at once, and Save commits
+// everything together in the same PUT (there's no per-tab API endpoint).
+function TabActions({ editing, submitting, onEdit, onCancel, onSave }) {
+  return (
+    <div className="admin-header-actions" style={{ marginTop: 16 }}>
+      {editing ? (
+        <>
+          <button type="button" className="btn-secondary" onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="button" className="btn-primary" onClick={onSave} disabled={submitting}>
+            {submitting ? 'Saving…' : 'Save changes'}
+          </button>
+        </>
+      ) : (
+        <button type="button" className="btn-secondary" onClick={onEdit}>
+          <Icon name="edit" size={15} /> Edit
+        </button>
+      )}
+    </div>
+  )
+}
+
+function buildEditableState(employee) {
+  return {
+    photo: employee.photo || '',
+    email: employee.email || '',
+    phone: employee.phone || '',
+    personalDetails: {
+      ...emptyPersonalDetails,
+      dateOfBirth: employee.dateOfBirth || '',
+      dateOfJoining: employee.dateOfJoining || '',
+      aadharNumber: employee.aadharNumber || '',
+      panNumber: employee.panNumber || '',
+      drivingLicenceNumber: employee.drivingLicenceNumber || '',
+      bloodGroup: employee.bloodGroup || '',
+      currentAddress: { ...emptyPersonalDetails.currentAddress, ...employee.currentAddress },
+      permanentAddress: { ...emptyPersonalDetails.permanentAddress, ...employee.permanentAddress },
+      permanentSameAsCurrent: Boolean(employee.permanentSameAsCurrent),
+    },
+    emergencyContacts: employee.emergencyContacts || [],
+    familyMembers: employee.familyMembers || [],
+    education: employee.education || [],
+    experience: employee.experience || [],
+  }
+}
+
 export default function MyProfile() {
   const { user } = useAuth()
   const { employees, isLoading, refresh } = useEmployees()
   const { departments } = useDepartments()
-  const [editing, setEditing] = useState(false)
   const [lightboxOpen, setLightboxOpen] = useState(false)
+  const cityOptions = useCityOptions(employees)
 
   const myEmployee = employees.find((e) => e.id === user?.employeeId)
 
@@ -40,25 +126,21 @@ export default function MyProfile() {
 
   return (
     <div className="page">
-      <p className="page-subtitle">Personal Information — your details as they appear in the directory. Update your contact info below.</p>
+      <p className="page-subtitle">Personal Information — your details as they appear in the directory.</p>
 
       <div className="detail-header">
-        {/* The edit form below has its own photo preview/upload — showing
-            this one too while editing would mean two photos on screen for
-            the same field. */}
-        {!editing &&
-          (myEmployee.photo ? (
-            <button
-              type="button"
-              className="avatar-button"
-              onClick={() => setLightboxOpen(true)}
-              aria-label={`View ${myEmployee.name}'s full photo`}
-            >
-              <Avatar name={myEmployee.name} photo={myEmployee.photo} className="detail-avatar" />
-            </button>
-          ) : (
+        {myEmployee.photo ? (
+          <button
+            type="button"
+            className="avatar-button"
+            onClick={() => setLightboxOpen(true)}
+            aria-label={`View ${myEmployee.name}'s full photo`}
+          >
             <Avatar name={myEmployee.name} photo={myEmployee.photo} className="detail-avatar" />
-          ))}
+          </button>
+        ) : (
+          <Avatar name={myEmployee.name} photo={myEmployee.photo} className="detail-avatar" />
+        )}
         <div>
           <h1>{myEmployee.name}</h1>
           <p className="page-subtitle">
@@ -70,23 +152,7 @@ export default function MyProfile() {
         </div>
       </div>
 
-      {editing ? (
-        <ContactEditForm
-          employee={myEmployee}
-          onSaved={async () => {
-            await refresh()
-            setEditing(false)
-          }}
-          onCancel={() => setEditing(false)}
-        />
-      ) : (
-        <ContactReadOnly employee={myEmployee} onEdit={() => setEditing(true)} />
-      )}
-
-      <p className="form-hint" style={{ marginTop: 16 }}>
-        Name, title, department, manager, and job description are set by an admin — see{' '}
-        <Link to="/organisation/directory">the directory</Link> or contact an administrator to change those.
-      </p>
+      <ProfileEditor employee={myEmployee} cityOptions={cityOptions} onSaved={refresh} />
 
       {lightboxOpen && (
         <PhotoLightbox src={myEmployee.photo} alt={myEmployee.name} onClose={() => setLightboxOpen(false)} />
@@ -95,90 +161,24 @@ export default function MyProfile() {
   )
 }
 
-function ContactReadOnly({ employee, onEdit }) {
-  const emergency = employee.emergencyContact ?? {}
-  const hasEmergencyContact = emergency.name || emergency.relation || emergency.phone
-
-  return (
-    <>
-      <div className="admin-header-row">
-        <h2 style={{ margin: 0 }}>Contact &amp; emergency info</h2>
-        <button type="button" className="btn-secondary" onClick={onEdit}>
-          <Icon name="edit" size={15} /> Edit
-        </button>
-      </div>
-      <div className="detail-grid">
-        <section className="detail-card">
-          <h2>Contact</h2>
-          {employee.email || employee.phone ? (
-            <dl className="detail-list">
-              {employee.email && (
-                <>
-                  <dt>Email</dt>
-                  <dd>
-                    <a href={`mailto:${employee.email}`}>{employee.email}</a>
-                  </dd>
-                </>
-              )}
-              {employee.phone && (
-                <>
-                  <dt>Phone</dt>
-                  <dd>
-                    <a href={`tel:${employee.phone}`}>{employee.phone}</a>
-                  </dd>
-                </>
-              )}
-            </dl>
-          ) : (
-            <p className="empty-state">Not on file yet.</p>
-          )}
-        </section>
-
-        <section className="detail-card">
-          <h2>Emergency contact</h2>
-          {hasEmergencyContact ? (
-            <dl className="detail-list">
-              {emergency.name && (
-                <>
-                  <dt>Name</dt>
-                  <dd>{emergency.name}</dd>
-                </>
-              )}
-              {emergency.relation && (
-                <>
-                  <dt>Relation</dt>
-                  <dd>{emergency.relation}</dd>
-                </>
-              )}
-              {emergency.phone && (
-                <>
-                  <dt>Phone</dt>
-                  <dd>
-                    <a href={`tel:${emergency.phone}`}>{emergency.phone}</a>
-                  </dd>
-                </>
-              )}
-            </dl>
-          ) : (
-            <p className="empty-state">Not on file yet.</p>
-          )}
-        </section>
-      </div>
-    </>
-  )
-}
-
-function ContactEditForm({ employee, onSaved, onCancel }) {
-  const [photo, setPhoto] = useState(employee.photo || '')
-  const [email, setEmail] = useState(employee.email || '')
-  const [phone, setPhone] = useState(employee.phone || '')
-  const [emergencyName, setEmergencyName] = useState(employee.emergencyContact?.name || '')
-  const [emergencyRelation, setEmergencyRelation] = useState(employee.emergencyContact?.relation || '')
-  const [emergencyPhone, setEmergencyPhone] = useState(employee.emergencyContact?.phone || '')
+function ProfileEditor({ employee, cityOptions, onSaved }) {
+  const [editing, setEditing] = useState(false)
+  const [state, setState] = useState(() => buildEditableState(employee))
   const [photoError, setPhotoError] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const fileInputRef = useRef(null)
+
+  function set(field, value) {
+    setState((s) => ({ ...s, [field]: value }))
+  }
+
+  function handleCancel() {
+    setState(buildEditableState(employee))
+    setError('')
+    setPhotoError('')
+    setEditing(false)
+  }
 
   async function handlePhotoChange(e) {
     const file = e.target.files?.[0]
@@ -189,28 +189,32 @@ function ContactEditForm({ employee, onSaved, onCancel }) {
       return
     }
     try {
-      setPhoto(await fileToResizedDataUrl(file))
+      set('photo', await fileToResizedDataUrl(file))
       setPhotoError('')
     } catch {
       setPhotoError('Could not read that image — try a different file.')
     }
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault()
+  async function handleSave() {
     setSubmitting(true)
     setError('')
     try {
       await apiFetch('/api/me/employee', {
         method: 'PUT',
         body: {
-          photo,
-          email,
-          phone,
-          emergencyContact: { name: emergencyName, relation: emergencyRelation, phone: emergencyPhone },
+          photo: state.photo,
+          email: state.email,
+          phone: state.phone,
+          emergencyContacts: state.emergencyContacts,
+          familyMembers: state.familyMembers,
+          education: state.education,
+          experience: state.experience,
+          ...state.personalDetails,
         },
       })
       await onSaved()
+      setEditing(false)
     } catch (err) {
       setError(err.message || 'Could not save your changes.')
     } finally {
@@ -218,63 +222,303 @@ function ContactEditForm({ employee, onSaved, onCancel }) {
     }
   }
 
-  return (
-    <form onSubmit={handleSubmit}>
-      <div className="form-field">
-        <span>Photo</span>
-        <div className="avatar-upload">
-          <Avatar name={employee.name} photo={photo} className="detail-avatar avatar-upload-preview" />
-          <div className="avatar-upload-actions">
-            <button type="button" className="btn-secondary" onClick={() => fileInputRef.current?.click()}>
-              {photo ? 'Change photo' : 'Upload photo'}
-            </button>
-            {photo && (
-              <button type="button" className="btn-secondary" onClick={() => setPhoto('')}>
-                Remove
-              </button>
-            )}
-            <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoChange} hidden />
-          </div>
-          {photoError && <p className="form-error">{photoError}</p>}
+  const actionsProps = { editing, submitting, onEdit: () => setEditing(true), onCancel: handleCancel, onSave: handleSave }
+  const hasPersonalDetails =
+    employee.dateOfBirth || employee.dateOfJoining || employee.aadharNumber || employee.panNumber || employee.drivingLicenceNumber || employee.bloodGroup
+  const permanentAddress = employee.permanentSameAsCurrent ? employee.currentAddress : employee.permanentAddress
+
+  const tabs = [
+    {
+      key: 'company',
+      label: 'Syncaxis company details',
+      content: (
+        <div>
+          {error && <p className="form-error">{error}</p>}
+          {editing ? (
+            <>
+              <div className="form-field">
+                <span>Photo</span>
+                <div className="avatar-upload">
+                  <Avatar name={employee.name} photo={state.photo} className="detail-avatar avatar-upload-preview" />
+                  <div className="avatar-upload-actions">
+                    <button type="button" className="btn-secondary" onClick={() => fileInputRef.current?.click()}>
+                      {state.photo ? 'Change photo' : 'Upload photo'}
+                    </button>
+                    {state.photo && (
+                      <button type="button" className="btn-secondary" onClick={() => set('photo', '')}>
+                        Remove
+                      </button>
+                    )}
+                    <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoChange} hidden />
+                  </div>
+                  {photoError && <p className="form-error">{photoError}</p>}
+                </div>
+              </div>
+              <div className="form-row form-row-3">
+                <PhoneInput label="Mobile no." value={state.phone} onChange={(v) => set('phone', v)} />
+                <label className="form-field">
+                  <span>Email</span>
+                  <input type="email" value={state.email} onChange={(e) => set('email', e.target.value)} />
+                </label>
+                <label className="form-field">
+                  <span>Date of joining</span>
+                  <input type="date" value={state.personalDetails.dateOfJoining} disabled />
+                </label>
+              </div>
+              <p className="form-hint">
+                Name, title, department, manager, job description, and date of joining are set by an admin — see{' '}
+                <Link to="/organisation/directory">the directory</Link> or contact an administrator to change those.
+              </p>
+            </>
+          ) : (
+            <dl className="detail-list">
+              <dt>Email</dt>
+              <dd>{employee.email ? <a href={`mailto:${employee.email}`}>{employee.email}</a> : '—'}</dd>
+              <dt>Phone</dt>
+              <dd>{employee.phone ? <a href={`tel:${employee.phone}`}>{employee.phone}</a> : '—'}</dd>
+              <dt>Date of joining</dt>
+              <dd>{formatDate(employee.dateOfJoining) || '—'}</dd>
+            </dl>
+          )}
+          <TabActions {...actionsProps} />
         </div>
-      </div>
+      ),
+    },
+    {
+      key: 'personal',
+      label: 'Personal & address',
+      content: (
+        <div>
+          {editing ? (
+            <PersonalDetailsFields
+              value={state.personalDetails}
+              onChange={(v) => set('personalDetails', v)}
+              cityOptions={cityOptions}
+              basePath="/api/me/employee/documents"
+            />
+          ) : (
+            <div className="detail-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+              <section className="detail-card">
+                <h2>Personal details</h2>
+                {hasPersonalDetails ? (
+                  <dl className="detail-list">
+                    {employee.dateOfBirth && (
+                      <>
+                        <dt>Date of birth</dt>
+                        <dd>{formatDate(employee.dateOfBirth)}</dd>
+                      </>
+                    )}
+                    {employee.bloodGroup && (
+                      <>
+                        <dt>Blood group</dt>
+                        <dd>{employee.bloodGroup}</dd>
+                      </>
+                    )}
+                    {employee.aadharNumber && (
+                      <>
+                        <dt>Aadhar no.</dt>
+                        <dd>{employee.aadharNumber}</dd>
+                      </>
+                    )}
+                    {employee.panNumber && (
+                      <>
+                        <dt>PAN no.</dt>
+                        <dd>{employee.panNumber}</dd>
+                      </>
+                    )}
+                    {employee.drivingLicenceNumber && (
+                      <>
+                        <dt>Driving licence no.</dt>
+                        <dd>{employee.drivingLicenceNumber}</dd>
+                      </>
+                    )}
+                  </dl>
+                ) : (
+                  <p className="empty-state">Not on file yet.</p>
+                )}
+              </section>
+              {employee.permanentSameAsCurrent ? (
+                <section className="detail-card">
+                  <h2>Current &amp; permanent address</h2>
+                  <AddressDisplay address={employee.currentAddress} />
+                </section>
+              ) : (
+                <>
+                  <section className="detail-card">
+                    <h2>Current address</h2>
+                    <AddressDisplay address={employee.currentAddress} />
+                  </section>
+                  <section className="detail-card">
+                    <h2>Permanent address</h2>
+                    <AddressDisplay address={permanentAddress} />
+                  </section>
+                </>
+              )}
+            </div>
+          )}
+          <TabActions {...actionsProps} />
+        </div>
+      ),
+    },
+    {
+      key: 'family',
+      label: 'Family & emergency contact',
+      content: (
+        <div>
+          {editing ? (
+            <>
+              <EmergencyContactsFields contacts={state.emergencyContacts} onChange={(v) => set('emergencyContacts', v)} />
+              <FamilyDetailsFields members={state.familyMembers} onChange={(v) => set('familyMembers', v)} />
+            </>
+          ) : (
+            <div className="detail-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+              <section className="detail-card">
+                <h2>Emergency contact{(employee.emergencyContacts || []).length > 1 ? 's' : ''}</h2>
+                {(employee.emergencyContacts || []).length > 0 ? (
+                  <div className="detail-card-list">
+                    {employee.emergencyContacts.map((c, i) => (
+                      <dl className="detail-list" key={i}>
+                        <dt>Name</dt>
+                        <dd>{c.name}</dd>
+                        {c.relation && (
+                          <>
+                            <dt>Relation</dt>
+                            <dd>{c.relation}</dd>
+                          </>
+                        )}
+                        {c.phone && (
+                          <>
+                            <dt>Phone</dt>
+                            <dd>
+                              <a href={`tel:${c.phone}`}>{c.phone}</a>
+                            </dd>
+                          </>
+                        )}
+                      </dl>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="empty-state">Not on file yet.</p>
+                )}
+              </section>
+              <section className="detail-card">
+                <h2>Family details</h2>
+                {(employee.familyMembers || []).length > 0 ? (
+                  <div className="detail-card-list">
+                    {employee.familyMembers.map((m, i) => (
+                      <dl className="detail-list" key={i}>
+                        <dt>Name</dt>
+                        <dd>{m.name}</dd>
+                        {m.relation && (
+                          <>
+                            <dt>Relation</dt>
+                            <dd>{m.relation}</dd>
+                          </>
+                        )}
+                        {m.contactNo && (
+                          <>
+                            <dt>Contact no.</dt>
+                            <dd>
+                              <a href={`tel:${m.contactNo}`}>{m.contactNo}</a>
+                            </dd>
+                          </>
+                        )}
+                      </dl>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="empty-state">Not on file yet.</p>
+                )}
+              </section>
+            </div>
+          )}
+          <TabActions {...actionsProps} />
+        </div>
+      ),
+    },
+    {
+      key: 'education',
+      label: 'Education',
+      content: (
+        <div>
+          {editing ? (
+            <EducationFields entries={state.education} onChange={(v) => set('education', v)} />
+          ) : (employee.education || []).length > 0 ? (
+            <div className="detail-card-list">
+              {employee.education.map((e, i) => (
+                <dl className="detail-list" key={i}>
+                  <dt>Education</dt>
+                  <dd>{e.education}</dd>
+                  {e.institution && (
+                    <>
+                      <dt>Institution</dt>
+                      <dd>{e.institution}</dd>
+                    </>
+                  )}
+                  {e.stream && (
+                    <>
+                      <dt>Stream</dt>
+                      <dd>{e.stream}</dd>
+                    </>
+                  )}
+                  {e.yearOfPassing && (
+                    <>
+                      <dt>Year of passing</dt>
+                      <dd>{e.yearOfPassing}</dd>
+                    </>
+                  )}
+                </dl>
+              ))}
+            </div>
+          ) : (
+            <p className="empty-state">Not on file yet.</p>
+          )}
+          <TabActions {...actionsProps} />
+        </div>
+      ),
+    },
+    {
+      key: 'experience',
+      label: 'Professional experience',
+      content: (
+        <div>
+          {editing ? (
+            <ExperienceFields entries={state.experience} onChange={(v) => set('experience', v)} />
+          ) : (employee.experience || []).length > 0 ? (
+            <div className="detail-card-list">
+              {employee.experience.map((x, i) => (
+                <dl className="detail-list" key={i}>
+                  <dt>Company</dt>
+                  <dd>{x.companyName}</dd>
+                  {x.designation && (
+                    <>
+                      <dt>Designation</dt>
+                      <dd>{x.designation}</dd>
+                    </>
+                  )}
+                  {x.startDate && (
+                    <>
+                      <dt>Start date</dt>
+                      <dd>{formatDate(x.startDate)}</dd>
+                    </>
+                  )}
+                  {x.endDate && (
+                    <>
+                      <dt>End date</dt>
+                      <dd>{formatDate(x.endDate)}</dd>
+                    </>
+                  )}
+                </dl>
+              ))}
+            </div>
+          ) : (
+            <p className="empty-state">Not on file yet.</p>
+          )}
+          <TabActions {...actionsProps} />
+        </div>
+      ),
+    },
+  ]
 
-      <div className="form-row">
-        <label className="form-field">
-          <span>Email</span>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        </label>
-        <label className="form-field">
-          <span>Phone</span>
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} />
-        </label>
-      </div>
-
-      <h3 className="form-section-title">Emergency contact</h3>
-      <div className="form-row form-row-3">
-        <label className="form-field">
-          <span>Name</span>
-          <input value={emergencyName} onChange={(e) => setEmergencyName(e.target.value)} />
-        </label>
-        <label className="form-field">
-          <span>Relation</span>
-          <input value={emergencyRelation} onChange={(e) => setEmergencyRelation(e.target.value)} />
-        </label>
-        <label className="form-field">
-          <span>Phone</span>
-          <input value={emergencyPhone} onChange={(e) => setEmergencyPhone(e.target.value)} />
-        </label>
-      </div>
-
-      {error && <p className="form-error">{error}</p>}
-      <div className="admin-header-actions" style={{ marginTop: 8 }}>
-        <button type="button" className="btn-secondary" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="submit" className="btn-primary" disabled={submitting}>
-          {submitting ? 'Saving…' : 'Save changes'}
-        </button>
-      </div>
-    </form>
-  )
+  return <ProfileTabsShell tabs={tabs} />
 }

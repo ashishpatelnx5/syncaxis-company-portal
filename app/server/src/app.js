@@ -45,6 +45,9 @@ app.use((err, req, res, next) => {
   if (err.type === 'entity.too.large') {
     return res.status(413).json({ error: 'That photo is too large — try a smaller image.' })
   }
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ error: 'That file is too large — the limit is 5MB.' })
+  }
   console.error(err)
   res.status(500).json({ error: 'Something went wrong on the server.' })
 })
