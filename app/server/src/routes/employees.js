@@ -4,6 +4,7 @@ import path from 'path'
 import fs from 'fs/promises'
 import { getPool, sql } from '../config/db.js'
 import { env } from '../config/env.js'
+import { auditContext, writeAuditLog } from '../lib/audit.js'
 import { accessFromIamUser, requireAuth, requirePermission } from '../middleware/auth.js'
 import {
   ALLOWED_EXTENSIONS,
@@ -695,6 +696,7 @@ router.post('/', requireAdminEmployees, async (req, res, next) => {
     await transaction.commit()
 
     await archivePhotoToFile({ employeeId: row.EmployeeId, employeeName: row.Name, photoDataUrl: body.photo, uploadedByUserId: req.user.sub })
+    writeAuditLog({ ...auditContext(req), eventType: 'CREATE', entityType: 'Employee', entityId: row.EmployeeId, detail: `Created "${row.Name}"${row.Title ? ` (${row.Title})` : ''}` })
     res.status(201).json(
       toEmployee(row, singleEmployeeLookups(row.EmployeeId, { departmentIds: body.departmentIds, emergencyContacts, familyMembers, education, experience })),
     )
@@ -714,8 +716,12 @@ router.put('/:id', requireAdminEmployees, async (req, res, next) => {
     const { firstName, middleName, lastName, displayName, name } = resolveNameFields(body)
     if (!firstName || !lastName) return res.status(400).json({ error: 'First name and last name are required.' })
 
-    const previousPhotoResult = await pool.request().input('id', sql.Int, id).query('SELECT PhotoUrl FROM portal.Employees WHERE EmployeeId = @id')
-    const previousPhoto = previousPhotoResult.recordset[0]?.PhotoUrl
+    const previousResult = await pool
+      .request()
+      .input('id', sql.Int, id)
+      .query('SELECT PhotoUrl, Name, Title, Email, Phone, ManagerId, JobDescriptionId FROM portal.Employees WHERE EmployeeId = @id')
+    const before = previousResult.recordset[0]
+    const previousPhoto = before?.PhotoUrl
 
     await transaction.begin()
     const updateRequest = new sql.Request(transaction)
@@ -763,6 +769,16 @@ router.put('/:id', requireAdminEmployees, async (req, res, next) => {
     if (body.photo && body.photo !== previousPhoto) {
       await archivePhotoToFile({ employeeId: id, employeeName: row.Name, photoDataUrl: body.photo, uploadedByUserId: req.user.sub })
     }
+    const changes = []
+    if (before?.Name && before.Name !== row.Name) changes.push(`Name: "${before.Name}" → "${row.Name}"`)
+    if ((before?.Title || '') !== (row.Title || '')) changes.push(`Title: "${before?.Title || '—'}" → "${row.Title || '—'}"`)
+    if ((before?.Email || '') !== (row.Email || '')) changes.push(`Email: "${before?.Email || '—'}" → "${row.Email || '—'}"`)
+    if ((before?.Phone || '') !== (row.Phone || '')) changes.push(`Phone: "${before?.Phone || '—'}" → "${row.Phone || '—'}"`)
+    if (before?.ManagerId !== row.ManagerId) changes.push('Manager changed')
+    if (before?.JobDescriptionId !== row.JobDescriptionId) changes.push('Job description changed')
+    if (body.photo !== undefined && body.photo !== previousPhoto) changes.push('Photo changed')
+    const detail = changes.length > 0 ? `Updated "${row.Name}" — ${changes.join(', ')}` : `Updated "${row.Name}" (no field changes — personal/family/education/experience data may have changed)`
+    writeAuditLog({ ...auditContext(req), eventType: 'UPDATE', entityType: 'Employee', entityId: id, detail })
     res.json(toEmployee(row, singleEmployeeLookups(id, { departmentIds: body.departmentIds, emergencyContacts, familyMembers, education, experience })))
   } catch (err) {
     await transaction.rollback().catch(() => {})
@@ -777,6 +793,7 @@ router.delete('/:id', requireAdminEmployees, async (req, res, next) => {
   try {
     const id = Number(req.params.id)
     await transaction.begin()
+    const existing = await new sql.Request(transaction).input('id', sql.Int, id).query('SELECT Name FROM portal.Employees WHERE EmployeeId = @id')
     await new sql.Request(transaction)
       .input('id', sql.Int, id)
       .query('UPDATE portal.Employees SET ManagerId = NULL WHERE ManagerId = @id')
@@ -792,6 +809,13 @@ router.delete('/:id', requireAdminEmployees, async (req, res, next) => {
     }
 
     await transaction.commit()
+    writeAuditLog({
+      ...auditContext(req),
+      eventType: 'DELETE',
+      entityType: 'Employee',
+      entityId: id,
+      detail: existing.recordset[0]?.Name ? `Deleted "${existing.recordset[0].Name}"` : 'Deleted',
+    })
     res.status(204).end()
   } catch (err) {
     await transaction.rollback().catch(() => {})
@@ -832,6 +856,24 @@ router.put('/:id/reports', requireAdminEmployees, async (req, res, next) => {
     }
 
     await transaction.commit()
+
+    if (toAssign.length > 0 || toClear.length > 0) {
+      const changedIds = [...toAssign, ...toClear].filter(Number.isFinite)
+      const namesResult = await pool
+        .request()
+        .query(`SELECT EmployeeId, Name FROM portal.Employees WHERE EmployeeId IN (${changedIds.join(',') || 'NULL'})`)
+      const nameById = new Map(namesResult.recordset.map((r) => [r.EmployeeId, r.Name]))
+      const parts = []
+      if (toAssign.length > 0) parts.push(`Added: ${toAssign.map((id) => nameById.get(id) || id).join(', ')}`)
+      if (toClear.length > 0) parts.push(`Removed: ${toClear.map((id) => nameById.get(id) || id).join(', ')}`)
+      writeAuditLog({
+        ...auditContext(req),
+        eventType: 'UPDATE',
+        entityType: 'Employee',
+        entityId: managerId,
+        detail: `Changed direct reports — ${parts.join('; ')}`,
+      })
+    }
     res.status(204).end()
   } catch (err) {
     await transaction.rollback().catch(() => {})
@@ -868,6 +910,13 @@ router.post('/:id/documents', requireAdminEmployees, upload.single('file'), asyn
       uploadedByUserId: req.user.sub,
     })
     if (error) return res.status(400).json({ error })
+    writeAuditLog({
+      ...auditContext(req),
+      eventType: 'CREATE',
+      entityType: 'EmployeeDocument',
+      entityId: employeeId,
+      detail: `Uploaded ${req.body?.documentType} document for "${employee.Name}"`,
+    })
     res.status(201).json(document)
   } catch (err) {
     next(err)
@@ -913,6 +962,7 @@ router.post('/:id/education/:educationId/document', requireAdminEmployees, uploa
       file: req.file,
     })
     if (error) return res.status(400).json({ error })
+    writeAuditLog({ ...auditContext(req), eventType: 'CREATE', entityType: 'EmployeeEducationDocument', entityId: employeeId, detail: `Uploaded education document for "${employee.Name}"` })
     res.status(201).json(document)
   } catch (err) {
     next(err)
@@ -952,6 +1002,7 @@ router.post('/:id/experience/:experienceId/document', requireAdminEmployees, upl
       file: req.file,
     })
     if (error) return res.status(400).json({ error })
+    writeAuditLog({ ...auditContext(req), eventType: 'CREATE', entityType: 'EmployeeExperienceDocument', entityId: employeeId, detail: `Uploaded experience document for "${employee.Name}"` })
     res.status(201).json(document)
   } catch (err) {
     next(err)

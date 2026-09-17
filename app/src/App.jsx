@@ -4,6 +4,7 @@ import ProtectedPage from './components/ProtectedPage'
 import RequireAuth from './components/RequireAuth'
 import Account from './pages/Account'
 import Admin from './pages/Admin'
+import AuditLog from './pages/AuditLog'
 import Home from './pages/Home'
 import Applications from './pages/Applications'
 import Complaints from './pages/Complaints'
@@ -214,6 +215,14 @@ function App() {
               element={
                 <ProtectedPage pageKey="admin-complaints">
                   <ComplaintsAdmin />
+                </ProtectedPage>
+              }
+            />
+            <Route
+              path="audit-log"
+              element={
+                <ProtectedPage adminOnly>
+                  <AuditLog />
                 </ProtectedPage>
               }
             />

@@ -2,6 +2,7 @@ import { Router } from 'express'
 import path from 'path'
 import { getPool, sql } from '../config/db.js'
 import { env } from '../config/env.js'
+import { auditContext, writeAuditLog } from '../lib/audit.js'
 import { requireAuth } from '../middleware/auth.js'
 import {
   SELF_SERVICE_PERSONAL_DETAIL_SET_CLAUSE,
@@ -74,6 +75,13 @@ router.put('/employee', async (req, res, next) => {
     if (body.photo && body.photo !== own.PhotoUrl) {
       await archivePhotoToFile({ employeeId: own.EmployeeId, employeeName: own.Name, photoDataUrl: body.photo, uploadedByUserId: req.user.sub })
     }
+    writeAuditLog({
+      ...auditContext(req),
+      eventType: 'UPDATE',
+      entityType: 'Employee',
+      entityId: own.EmployeeId,
+      detail: `"${own.Name}" updated their own profile (personal details, address, family, emergency contacts, education, or experience)`,
+    })
     res.json(
       toEmployee(selectResult.recordset[0], {
         ...singleEmployeeLookups(own.EmployeeId, { emergencyContacts, familyMembers, education, experience }),
@@ -111,6 +119,13 @@ router.post('/employee/documents', upload.single('file'), async (req, res, next)
       uploadedByUserId: req.user.sub,
     })
     if (error) return res.status(400).json({ error })
+    writeAuditLog({
+      ...auditContext(req),
+      eventType: 'CREATE',
+      entityType: 'EmployeeDocument',
+      entityId: own.EmployeeId,
+      detail: `"${own.Name}" uploaded their own ${req.body?.documentType} document`,
+    })
     res.status(201).json(document)
   } catch (err) {
     next(err)
@@ -157,6 +172,7 @@ router.post('/employee/education/:educationId/document', upload.single('file'), 
       file: req.file,
     })
     if (error) return res.status(400).json({ error })
+    writeAuditLog({ ...auditContext(req), eventType: 'CREATE', entityType: 'EmployeeEducationDocument', entityId: own.EmployeeId, detail: `"${own.Name}" uploaded their own education document` })
     res.status(201).json(document)
   } catch (err) {
     next(err)
@@ -198,6 +214,7 @@ router.post('/employee/experience/:experienceId/document', upload.single('file')
       file: req.file,
     })
     if (error) return res.status(400).json({ error })
+    writeAuditLog({ ...auditContext(req), eventType: 'CREATE', entityType: 'EmployeeExperienceDocument', entityId: own.EmployeeId, detail: `"${own.Name}" uploaded their own experience document` })
     res.status(201).json(document)
   } catch (err) {
     next(err)

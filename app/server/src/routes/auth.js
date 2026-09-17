@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { getPool, sql } from '../config/db.js'
 import { env } from '../config/env.js'
+import { auditContext, clientIp, writeAuditLog } from '../lib/audit.js'
 import {
   createSession,
   destroySession,
@@ -47,9 +48,20 @@ router.post('/login', async (req, res, next) => {
     }
 
     const data = await iamRes.json().catch(() => ({}))
-    if (!iamRes.ok) return res.status(iamRes.status).json({ error: data.error || 'Login failed.' })
+    if (!iamRes.ok) {
+      writeAuditLog({ username, eventType: 'LOGIN_FAILURE', detail: data.error || 'Login failed.', ipAddress: clientIp(req) })
+      return res.status(iamRes.status).json({ error: data.error || 'Login failed.' })
+    }
 
-    res.json(await establishSession(data))
+    const result = await establishSession(data)
+    writeAuditLog({
+      userId: data.user?.id,
+      username: data.user?.displayName || data.user?.username,
+      eventType: 'LOGIN_SUCCESS',
+      detail: 'Signed in with username and password',
+      ipAddress: clientIp(req),
+    })
+    res.json(result)
   } catch (err) {
     next(err)
   }
@@ -92,6 +104,7 @@ router.post('/change-password', requireAuth, async (req, res, next) => {
       console.error('Re-authentication after password change failed — session keeps its old syncaxis-iam token:', err)
     }
 
+    writeAuditLog({ ...auditContext(req), eventType: 'PASSWORD_CHANGED', detail: 'Changed their own password' })
     res.status(204).end()
   } catch (err) {
     next(err)
@@ -146,16 +159,26 @@ router.post('/sso/exchange', async (req, res, next) => {
 
     const data = await iamRes.json().catch(() => ({}))
     if (!iamRes.ok) {
+      writeAuditLog({ eventType: 'LOGIN_FAILURE', detail: 'SSO exchange failed — expired or invalid code', ipAddress: clientIp(req) })
       return res.status(iamRes.status).json({ error: data.error || 'This sign-in link has expired — please try again from the Portal.' })
     }
 
-    res.json(await establishSession(data))
+    const result = await establishSession(data)
+    writeAuditLog({
+      userId: data.user?.id,
+      username: data.user?.displayName || data.user?.username,
+      eventType: 'LOGIN_SUCCESS',
+      detail: 'via SSO handoff',
+      ipAddress: clientIp(req),
+    })
+    res.json(result)
   } catch (err) {
     next(err)
   }
 })
 
 router.post('/logout', requireAuth, async (req, res) => {
+  writeAuditLog({ ...auditContext(req), eventType: 'LOGOUT', detail: 'Signed out' })
   destroySession(req.user.sid)
   // Best-effort, mainly for symmetry/audit on syncaxis-iam's side — Portal's
   // own session is already gone regardless of whether this succeeds.

@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { getPool, sql } from '../config/db.js'
+import { auditContext, writeAuditLog } from '../lib/audit.js'
 import { accessFromIamUser, requireAnyPermission, requireAuth } from '../middleware/auth.js'
 
 const router = Router()
@@ -138,6 +139,7 @@ router.post('/', requireComplaints, async (req, res, next) => {
       .query('SELECT * FROM portal.Complaints WHERE ComplaintId = @id')
 
     await transaction.commit()
+    writeAuditLog({ ...auditContext(req), eventType: 'CREATE', entityType: 'Complaint', entityId: complaintId, detail: `Created "${subject}" (${body.category})` })
     res.status(201).json({ ...toComplaint(result.recordset[0]), history: [{ status, comment: null, createdAt: result.recordset[0].CreatedAt.toISOString() }] })
   } catch (err) {
     await transaction.rollback().catch(() => {})
@@ -222,6 +224,15 @@ router.put('/:id', requireComplaints, async (req, res, next) => {
       .query('SELECT * FROM portal.ComplaintHistory WHERE ComplaintId = @id ORDER BY CreatedAt ASC')
 
     await transaction.commit()
+    writeAuditLog({
+      ...auditContext(req),
+      eventType: 'UPDATE',
+      entityType: 'Complaint',
+      entityId: req.params.id,
+      detail: statusChanged
+        ? `Updated "${subject}" — status changed from ${existing.recordset[0].Status} to ${body.status}`
+        : `Updated "${subject}"`,
+    })
     res.json({ ...toComplaint(complaintResult.recordset[0]), history: historyResult.recordset.map(toHistoryEntry) })
   } catch (err) {
     await transaction.rollback().catch(() => {})
@@ -232,6 +243,7 @@ router.put('/:id', requireComplaints, async (req, res, next) => {
 router.delete('/:id', requireAdminComplaints, async (req, res, next) => {
   try {
     const pool = await getPool()
+    const existing = await pool.request().input('id', sql.Int, req.params.id).query('SELECT Subject FROM portal.Complaints WHERE ComplaintId = @id')
     // ON DELETE CASCADE on ComplaintHistory removes its timeline as part of
     // the same statement.
     const result = await pool
@@ -240,6 +252,13 @@ router.delete('/:id', requireAdminComplaints, async (req, res, next) => {
       .query('DELETE FROM portal.Complaints WHERE ComplaintId = @id')
 
     if (result.rowsAffected[0] === 0) return res.status(404).json({ error: 'Entry not found.' })
+    writeAuditLog({
+      ...auditContext(req),
+      eventType: 'DELETE',
+      entityType: 'Complaint',
+      entityId: req.params.id,
+      detail: existing.recordset[0]?.Subject ? `Deleted "${existing.recordset[0].Subject}"` : 'Deleted',
+    })
     res.status(204).end()
   } catch (err) {
     next(err)

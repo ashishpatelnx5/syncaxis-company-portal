@@ -49,6 +49,7 @@ const navItems = [
       { to: '/admin/holidays', label: 'Holidays', icon: 'calendar', pageKeys: ['admin-holidays'] },
       { to: '/admin/daily-plans', label: 'Team Daily Plans', icon: 'clipboard', pageKeys: ['admin-daily-plans'] },
       { to: '/admin/complaints', label: 'Complaints & Feedback', icon: 'flag', pageKeys: ['admin-complaints'] },
+      { to: '/admin/audit-log', label: 'Audit Log', icon: 'clipboard', adminOnly: true },
       // User/role/group management moved to syncaxis-iam — Portal no longer
       // manages identity itself (see portal-integration-instructions.md §8).
       {

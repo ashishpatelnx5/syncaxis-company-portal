@@ -3,6 +3,7 @@ import express from 'express'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { env } from './config/env.js'
+import auditLogRoutes from './routes/auditLog.js'
 import authRoutes from './routes/auth.js'
 import complaintsRoutes from './routes/complaints.js'
 import dailyPlansRoutes from './routes/dailyPlans.js'
@@ -30,6 +31,7 @@ app.use('/api/daily-plans', dailyPlansRoutes)
 app.use('/api/holidays', holidaysRoutes)
 app.use('/api/complaints', complaintsRoutes)
 app.use('/api/me', meRoutes)
+app.use('/api/audit-log', auditLogRoutes)
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found.' }))
 
 // Serves the built React app on this same port/process — run `npm run

@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { getPool, sql } from '../config/db.js'
+import { auditContext, writeAuditLog } from '../lib/audit.js'
 import { requireAuth, requirePermission } from '../middleware/auth.js'
 
 const router = Router()
@@ -54,7 +55,9 @@ router.post('/', requireAdminJobDescriptions, async (req, res, next) => {
       .input('id', sql.Int, insertResult.recordset[0].JobDescriptionId)
       .query('SELECT * FROM portal.JobDescriptions WHERE JobDescriptionId = @id')
 
-    res.status(201).json(toJobDescription(result.recordset[0]))
+    const jobDescription = toJobDescription(result.recordset[0])
+    writeAuditLog({ ...auditContext(req), eventType: 'CREATE', entityType: 'JobDescription', entityId: jobDescription.id, detail: `Created "${jobDescription.title}"` })
+    res.status(201).json(jobDescription)
   } catch (err) {
     if (err.number === 547) return res.status(400).json({ error: 'That department does not exist.' })
     next(err)
@@ -69,6 +72,9 @@ router.put('/:id', requireAdminJobDescriptions, async (req, res, next) => {
     if (!body.departmentId) return res.status(400).json({ error: 'Department is required.' })
 
     const pool = await getPool()
+    const previous = await pool.request().input('id', sql.Int, req.params.id).query('SELECT Title, ReportingTo FROM portal.JobDescriptions WHERE JobDescriptionId = @id')
+    const before = previous.recordset[0]
+
     // Same OUTPUT-vs-trigger restriction as the insert above — plain update,
     // then a separate select.
     const updateResult = await pool
@@ -91,7 +97,13 @@ router.put('/:id', requireAdminJobDescriptions, async (req, res, next) => {
       .input('id', sql.Int, req.params.id)
       .query('SELECT * FROM portal.JobDescriptions WHERE JobDescriptionId = @id')
 
-    res.json(toJobDescription(result.recordset[0]))
+    const jobDescription = toJobDescription(result.recordset[0])
+    const changes = []
+    if (before?.Title && before.Title !== jobDescription.title) changes.push(`Title: "${before.Title}" → "${jobDescription.title}"`)
+    if ((before?.ReportingTo || '') !== jobDescription.reportingTo) changes.push(`Reporting to: "${before?.ReportingTo || '—'}" → "${jobDescription.reportingTo || '—'}"`)
+    const detail = changes.length > 0 ? `Updated "${jobDescription.title}" — ${changes.join(', ')}` : `Updated "${jobDescription.title}"`
+    writeAuditLog({ ...auditContext(req), eventType: 'UPDATE', entityType: 'JobDescription', entityId: jobDescription.id, detail })
+    res.json(jobDescription)
   } catch (err) {
     if (err.number === 547) return res.status(400).json({ error: 'That department does not exist.' })
     next(err)
@@ -101,6 +113,7 @@ router.put('/:id', requireAdminJobDescriptions, async (req, res, next) => {
 router.delete('/:id', requireAdminJobDescriptions, async (req, res, next) => {
   try {
     const pool = await getPool()
+    const existing = await pool.request().input('id', sql.Int, req.params.id).query('SELECT Title FROM portal.JobDescriptions WHERE JobDescriptionId = @id')
     // ON DELETE SET NULL on Employees.JobDescriptionId unassigns anyone who
     // held this job description, as part of the same statement.
     const result = await pool
@@ -109,6 +122,13 @@ router.delete('/:id', requireAdminJobDescriptions, async (req, res, next) => {
       .query('DELETE FROM portal.JobDescriptions WHERE JobDescriptionId = @id')
 
     if (result.rowsAffected[0] === 0) return res.status(404).json({ error: 'Job description not found.' })
+    writeAuditLog({
+      ...auditContext(req),
+      eventType: 'DELETE',
+      entityType: 'JobDescription',
+      entityId: req.params.id,
+      detail: existing.recordset[0]?.Title ? `Deleted "${existing.recordset[0].Title}"` : 'Deleted',
+    })
     res.status(204).end()
   } catch (err) {
     next(err)
