@@ -60,7 +60,7 @@ export default function Home() {
               </p>
               {managerName && <p className="page-subtitle">Reports to {managerName}</p>}
             </div>
-            <Link to="/my-profile" className="back-link" style={{ marginLeft: 'auto', alignSelf: 'flex-start' }}>
+            <Link to="/my-profile" className="btn-primary" style={{ marginLeft: 'auto', alignSelf: 'flex-start' }}>
               <Icon name="edit" size={14} />
               Edit
             </Link>
