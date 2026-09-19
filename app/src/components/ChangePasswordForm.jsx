@@ -123,7 +123,7 @@ export default function ChangePasswordForm({ onClose }) {
 
             <div className="modal-footer">
               {!mandatory && (
-                <button type="button" className="btn-secondary" onClick={onClose}>
+                <button type="button" className="btn-cancel" onClick={onClose}>
                   Cancel
                 </button>
               )}

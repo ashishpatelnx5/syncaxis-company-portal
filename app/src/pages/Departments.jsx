@@ -33,7 +33,7 @@ export default function Departments() {
             <button type="button" className="btn-secondary" onClick={() => downloadDepartmentsModule(departments)}>
               Export departments.js
             </button>
-            <button type="button" className="btn-primary" onClick={() => setAddOpen(true)}>
+            <button type="button" className="btn-create" onClick={() => setAddOpen(true)}>
               <Icon name="plus" size={16} /> Add department
             </button>
           </div>

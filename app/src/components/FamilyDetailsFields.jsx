@@ -28,7 +28,7 @@ export default function FamilyDetailsFields({ members, onChange }) {
           Family details
         </h3>
         {list.length < MAX_FAMILY_MEMBERS && (
-          <button type="button" className="btn-secondary" onClick={addRow}>
+          <button type="button" className="btn-create" onClick={addRow}>
             <Icon name="plus" size={14} /> Add family member
           </button>
         )}

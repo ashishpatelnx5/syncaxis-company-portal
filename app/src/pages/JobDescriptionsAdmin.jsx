@@ -35,7 +35,7 @@ export default function JobDescriptionsAdmin() {
             <p className="page-subtitle">Add, edit, and remove job descriptions employees can be assigned to.</p>
           </div>
           <div className="admin-header-actions">
-            <button type="button" className="btn-primary" onClick={() => setAddOpen(true)}>
+            <button type="button" className="btn-create" onClick={() => setAddOpen(true)}>
               <Icon name="plus" size={16} /> Add job description
             </button>
           </div>

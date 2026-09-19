@@ -8,6 +8,10 @@
   --accent: #4f46e5;
   --accent-soft: rgba(79, 70, 229, 0.1);
   --accent-contrast: #ffffff;
+  --danger: #ef4444;
+  --danger-contrast: #ffffff;
+  --success: #15803d;
+  --success-contrast: #ffffff;
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.06);
   --shadow-md: 0 4px 10px rgba(16, 24, 40, 0.08);
   --radius: 12px;
@@ -1110,10 +1114,14 @@ a.mini-person:hover .mini-avatar {
   justify-content: space-between;
 }
 
-/* Buttons */
+/* Buttons - one color per action type, used the same way on every page:
+   primary = edit/update/save, create = add/create new, secondary =
+   previous/next step navigation, cancel = discard/close, danger = delete. */
 .btn-primary,
 .btn-secondary,
-.btn-danger {
+.btn-cancel,
+.btn-danger,
+.btn-create {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1134,6 +1142,15 @@ a.mini-person:hover .mini-avatar {
   opacity: 0.92;
 }
 
+.btn-create {
+  background: var(--success);
+  color: var(--success-contrast);
+}
+
+.btn-create:hover {
+  opacity: 0.92;
+}
+
 .btn-secondary {
   background: var(--surface);
   border-color: var(--border);
@@ -1145,9 +1162,20 @@ a.mini-person:hover .mini-avatar {
   color: var(--accent);
 }
 
+.btn-cancel {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.btn-cancel:hover {
+  border-color: var(--text-muted);
+  opacity: 0.85;
+}
+
 .btn-danger {
-  background: #ef4444;
-  color: #fff;
+  background: var(--danger);
+  color: var(--danger-contrast);
 }
 
 .btn-danger:hover {
@@ -1435,7 +1463,7 @@ a.mini-person:hover .mini-avatar {
 }
 
 .icon-btn-danger:hover {
-  color: #ef4444;
+  color: var(--danger);
 }
 
 /* Modal / form */

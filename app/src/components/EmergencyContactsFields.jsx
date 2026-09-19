@@ -77,7 +77,7 @@ export default function EmergencyContactsFields({ contacts, onChange }) {
           Emergency contact
         </h3>
         {list.length < MAX_EMERGENCY_CONTACTS && (
-          <button type="button" className="btn-secondary" onClick={addRow}>
+          <button type="button" className="btn-create" onClick={addRow}>
             <Icon name="plus" size={14} /> Add contact
           </button>
         )}

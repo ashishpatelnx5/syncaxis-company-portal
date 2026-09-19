@@ -87,7 +87,7 @@ function TabActions({ editing, submitting, onEdit, onCancel, onSave }) {
     <div className="admin-header-actions" style={{ marginTop: 16 }}>
       {editing ? (
         <>
-          <button type="button" className="btn-secondary" onClick={onCancel}>
+          <button type="button" className="btn-cancel" onClick={onCancel}>
             Cancel
           </button>
           <button type="button" className="btn-primary" onClick={onSave} disabled={submitting}>
@@ -95,7 +95,7 @@ function TabActions({ editing, submitting, onEdit, onCancel, onSave }) {
           </button>
         </>
       ) : (
-        <button type="button" className="btn-secondary" onClick={onEdit}>
+        <button type="button" className="btn-primary" onClick={onEdit}>
           <Icon name="edit" size={15} /> Edit
         </button>
       )}

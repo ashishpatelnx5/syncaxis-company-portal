@@ -383,10 +383,10 @@ export default function EmployeeForm({ employee, onClose, variant = 'modal' }) {
 
         <div className="modal-footer" style={{ marginTop: 24 }}>
           {submitError && <p className="form-error">{submitError}</p>}
-          <button type="button" className="btn-secondary" onClick={onClose}>
+          <button type="button" className="btn-cancel" onClick={onClose}>
             Cancel
           </button>
-          <button type="button" className="btn-primary" onClick={handleSubmit} disabled={submitting}>
+          <button type="button" className={isNew ? 'btn-create' : 'btn-primary'} onClick={handleSubmit} disabled={submitting}>
             {submitting ? 'Saving…' : isNew ? 'Add employee' : 'Save changes'}
           </button>
         </div>
@@ -410,10 +410,10 @@ export default function EmployeeForm({ employee, onClose, variant = 'modal' }) {
 
         <div className="modal-footer">
           {submitError && <p className="form-error">{submitError}</p>}
-          <button type="button" className="btn-secondary" onClick={onClose}>
+          <button type="button" className="btn-cancel" onClick={onClose}>
             Cancel
           </button>
-          <button type="button" className="btn-primary" onClick={handleSubmit} disabled={submitting}>
+          <button type="button" className={isNew ? 'btn-create' : 'btn-primary'} onClick={handleSubmit} disabled={submitting}>
             {submitting ? 'Saving…' : isNew ? 'Add employee' : 'Save changes'}
           </button>
         </div>

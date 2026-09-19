@@ -45,7 +45,7 @@ export default function Admin() {
             <button type="button" className="btn-secondary" onClick={() => downloadEmployeesModule(employees)}>
               Export employees.js
             </button>
-            <button type="button" className="btn-primary" onClick={() => setAddOpen(true)}>
+            <button type="button" className="btn-create" onClick={() => setAddOpen(true)}>
               <Icon name="plus" size={16} /> Add employee
             </button>
           </div>

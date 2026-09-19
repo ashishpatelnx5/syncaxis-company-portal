@@ -30,7 +30,7 @@ export default function EducationFields({ entries, onChange, basePath }) {
         <h3 className="form-section-title" style={{ margin: 0 }}>
           Education details
         </h3>
-        <button type="button" className="btn-secondary" onClick={addRow}>
+        <button type="button" className="btn-create" onClick={addRow}>
           <Icon name="plus" size={14} /> Add education
         </button>
       </div>

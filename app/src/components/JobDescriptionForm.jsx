@@ -203,7 +203,7 @@ export default function JobDescriptionForm({ jobDescription, onClose, variant = 
           ))}
           <button
             type="button"
-            className="btn-secondary form-array-add"
+            className="btn-create form-array-add"
             onClick={() => addGroup('responsibilityGroups', { title: '', responsibilities: '', accountability: '' })}
           >
             <Icon name="plus" size={14} /> Add category
@@ -232,7 +232,7 @@ export default function JobDescriptionForm({ jobDescription, onClose, variant = 
               )}
             </div>
           ))}
-          <button type="button" className="btn-secondary form-array-add" onClick={() => addGroup('kpis', { name: '', target: '' })}>
+          <button type="button" className="btn-create form-array-add" onClick={() => addGroup('kpis', { name: '', target: '' })}>
             <Icon name="plus" size={14} /> Add KPI
           </button>
 
@@ -265,7 +265,7 @@ export default function JobDescriptionForm({ jobDescription, onClose, variant = 
           ))}
           <button
             type="button"
-            className="btn-secondary form-array-add"
+            className="btn-create form-array-add"
             onClick={() => addGroup('authorityGroups', { label: '', items: '' })}
           >
             <Icon name="plus" size={14} /> Add group
@@ -293,10 +293,10 @@ export default function JobDescriptionForm({ jobDescription, onClose, variant = 
   const footer = (
     <div className="modal-footer">
       {error && <p className="form-error">{error}</p>}
-      <button type="button" className="btn-secondary" onClick={onClose}>
+      <button type="button" className="btn-cancel" onClick={onClose}>
         Cancel
       </button>
-      <button type="submit" className="btn-primary" disabled={submitting}>
+      <button type="submit" className={isNew ? 'btn-create' : 'btn-primary'} disabled={submitting}>
         {submitting ? 'Saving…' : isNew ? 'Add job description' : 'Save changes'}
       </button>
     </div>
