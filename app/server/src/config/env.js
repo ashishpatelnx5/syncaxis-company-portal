@@ -1,4 +1,6 @@
 import 'dotenv/config'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
 function required(name) {
   const value = process.env[name]
@@ -25,4 +27,10 @@ export const env = {
   iamApiUrl: required('IAM_API_URL'),
   // Base folder for employee personal documents — see config/docsStorage.js.
   docsMountPath: required('DOCS_MOUNT_PATH'),
+  // Server log files — see config/logger.js. Optional; defaults to server/logs.
+  log: {
+    dir: process.env.LOG_DIR || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../logs'),
+    level: (process.env.LOG_LEVEL || 'info').toLowerCase(),
+    retentionDays: Number(process.env.LOG_RETENTION_DAYS) || 30,
+  },
 }

@@ -3,6 +3,7 @@ import express from 'express'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { env } from './config/env.js'
+import { requestLogger } from './config/logger.js'
 import auditLogRoutes from './routes/auditLog.js'
 import authRoutes from './routes/auth.js'
 import complaintsRoutes from './routes/complaints.js'
@@ -19,6 +20,7 @@ const distDir = path.resolve(__dirname, '../../dist')
 
 const app = express()
 
+app.use(requestLogger)
 app.use(cors({ origin: env.corsOrigins }))
 app.use(express.json({ limit: '5mb' })) // employee photos are base64 data URLs
 

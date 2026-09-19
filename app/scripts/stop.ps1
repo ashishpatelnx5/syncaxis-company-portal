@@ -1,6 +1,7 @@
 <#
-Stops the app process started by start.ps1, killing its full process tree
-(npm/cmd spawn a child node process that would otherwise be left running).
+Stops the app process started by start.ps1, killing its full process tree.
+Only kills a PID that is still a node/cmd process, so a stale PID file whose
+number Windows has since reused for something unrelated is never acted on.
 #>
 
 $root = Split-Path -Parent $PSScriptRoot
@@ -13,9 +14,14 @@ function Stop-App($name, $pidFile) {
     }
 
     $processId = Get-Content $pidFile -ErrorAction SilentlyContinue
-    if ($processId -and (Get-Process -Id $processId -ErrorAction SilentlyContinue)) {
+    $proc = if ($processId) { Get-Process -Id $processId -ErrorAction SilentlyContinue } else { $null }
+
+    if ($proc -and $proc.ProcessName -in @('node', 'cmd')) {
         taskkill /PID $processId /T /F | Out-Null
+        try { $proc.WaitForExit(5000) | Out-Null } catch {}
         Write-Host "$name stopped (PID $processId)."
+    } elseif ($proc) {
+        Write-Host "${name}: PID $processId is now '$($proc.ProcessName)', not this app - leaving it alone."
     } else {
         Write-Host "${name}: process already gone."
     }
