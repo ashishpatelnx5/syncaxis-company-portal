@@ -1,7 +1,11 @@
 import AppCard from '../components/AppCard'
+import { useAuth } from '../context/useAuth'
 import { apps } from '../data/apps'
 
 export default function Applications() {
+  const { user, hasApp } = useAuth()
+  const visibleApps = apps.filter((app) => (app.adminOnly ? user?.isAdmin : hasApp(app.id)))
+
   return (
     <div className="page">
       <header className="page-header">
@@ -10,10 +14,11 @@ export default function Applications() {
       </header>
 
       <div className="app-grid">
-        {apps.map((app) => (
+        {visibleApps.map((app) => (
           <AppCard key={app.id} app={app} />
         ))}
       </div>
+      {visibleApps.length === 0 && <p className="empty-state">No applications have been granted to your account yet.</p>}
     </div>
   )
 }

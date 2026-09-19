@@ -3,6 +3,7 @@ import express from 'express'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { env } from './config/env.js'
+import auditLogRoutes from './routes/auditLog.js'
 import authRoutes from './routes/auth.js'
 import complaintsRoutes from './routes/complaints.js'
 import dailyPlansRoutes from './routes/dailyPlans.js'
@@ -10,6 +11,7 @@ import departmentsRoutes from './routes/departments.js'
 import employeesRoutes from './routes/employees.js'
 import holidaysRoutes from './routes/holidays.js'
 import jobDescriptionsRoutes from './routes/jobDescriptions.js'
+import meRoutes from './routes/me.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // The frontend's build output — one level up from server/, in app/.
@@ -28,6 +30,8 @@ app.use('/api/job-descriptions', jobDescriptionsRoutes)
 app.use('/api/daily-plans', dailyPlansRoutes)
 app.use('/api/holidays', holidaysRoutes)
 app.use('/api/complaints', complaintsRoutes)
+app.use('/api/me', meRoutes)
+app.use('/api/audit-log', auditLogRoutes)
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found.' }))
 
 // Serves the built React app on this same port/process — run `npm run
@@ -42,6 +46,9 @@ app.get(/^(?!\/api).*/, (req, res) => {
 app.use((err, req, res, next) => {
   if (err.type === 'entity.too.large') {
     return res.status(413).json({ error: 'That photo is too large — try a smaller image.' })
+  }
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ error: 'That file is too large — the limit is 5MB.' })
   }
   console.error(err)
   res.status(500).json({ error: 'Something went wrong on the server.' })

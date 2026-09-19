@@ -51,7 +51,7 @@ export default function HolidaysAdmin() {
             <p className="page-subtitle">Add, edit, and remove company holidays — grouped automatically by financial year.</p>
           </div>
           <div className="admin-header-actions">
-            <button type="button" className="btn-primary" onClick={() => setEditingId(null)}>
+            <button type="button" className="btn-create" onClick={() => setEditingId(null)}>
               <Icon name="plus" size={16} /> Add holiday
             </button>
           </div>

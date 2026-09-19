@@ -61,10 +61,10 @@ export default function HolidayForm({ holiday, onClose }) {
 
         <div className="modal-footer">
           {error && <p className="form-error">{error}</p>}
-          <button type="button" className="btn-secondary" onClick={onClose}>
+          <button type="button" className="btn-cancel" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn-primary" disabled={submitting}>
+          <button type="submit" className={isNew ? 'btn-create' : 'btn-primary'} disabled={submitting}>
             {submitting ? 'Saving…' : isNew ? 'Add holiday' : 'Save changes'}
           </button>
         </div>

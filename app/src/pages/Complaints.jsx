@@ -3,9 +3,9 @@ import ComplaintForm from '../components/ComplaintForm'
 import ComplaintHistoryTimeline from '../components/ComplaintHistoryTimeline'
 import ComplaintsSummary from '../components/ComplaintsSummary'
 import Icon from '../components/Icon'
+import { useAuth } from '../context/useAuth'
 import { useComplaints } from '../context/useComplaints'
 import { useEmployees } from '../context/useEmployees'
-import { getWhoAmI, setWhoAmI } from '../utils/whoAmI'
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -18,7 +18,12 @@ function slug(s) {
 export default function Complaints() {
   const { complaints, isLoading } = useComplaints()
   const { employees } = useEmployees()
-  const [employeeId, setEmployeeId] = useState(getWhoAmI)
+  const { user, hasPage } = useAuth()
+  const employeeId = user?.employeeId ?? ''
+  // Admins (via the admin-complaints permission) see everyone's entries here
+  // too, not just their own — deleting/reassigning still only lives on the
+  // dedicated Admin: Complaints & Feedback page.
+  const canSeeAll = hasPage('admin-complaints')
   // undefined = closed, null = new entry, number = editing that id
   const [editingId, setEditingId] = useState(undefined)
   // null = no filter (show all / "Total")
@@ -26,15 +31,10 @@ export default function Complaints() {
   // Accordion: at most one card's history is expanded at a time
   const [expandedId, setExpandedId] = useState(null)
 
-  function chooseEmployee(id) {
-    setEmployeeId(id)
-    setWhoAmI(id)
-  }
-
-  const sortedEmployees = employees.slice().sort((a, b) => a.name.localeCompare(b.name))
   const employeeName = (id) => employees.find((e) => e.id === id)?.name ?? 'Former employee'
-  const editingComplaint = typeof editingId === 'number' ? complaints.find((c) => c.id === editingId) : null
-  const visibleComplaints = statusFilter ? complaints.filter((c) => c.status === statusFilter) : complaints
+  const scopedComplaints = canSeeAll ? complaints : complaints.filter((c) => c.employeeId === Number(employeeId))
+  const editingComplaint = typeof editingId === 'number' ? scopedComplaints.find((c) => c.id === editingId) : null
+  const visibleComplaints = statusFilter ? scopedComplaints.filter((c) => c.status === statusFilter) : scopedComplaints
 
   return (
     <div className="page">
@@ -42,20 +42,13 @@ export default function Complaints() {
         <div className="admin-header-row">
           <div>
             <h1>Complaints &amp; Feedback</h1>
-            <p className="page-subtitle">Raise a complaint, report an issue, or share feedback — visible to everyone.</p>
+            <p className="page-subtitle">
+              {canSeeAll
+                ? 'Raise a complaint, report an issue, or share feedback — visible to everyone.'
+                : 'Raise a complaint, report an issue, or share feedback. You can see your own entries here.'}
+            </p>
           </div>
           <div className="admin-header-actions">
-            <label className="form-field complaint-whoami">
-              <span>Who are you?</span>
-              <select value={employeeId} onChange={(e) => chooseEmployee(e.target.value)}>
-                <option value="">— Select your name —</option>
-                {sortedEmployees.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.name}
-                  </option>
-                ))}
-              </select>
-            </label>
             <button type="button" className="btn-primary" disabled={!employeeId} onClick={() => setEditingId(null)}>
               <Icon name="plus" size={16} /> New entry
             </button>
@@ -63,7 +56,7 @@ export default function Complaints() {
         </div>
       </header>
 
-      <ComplaintsSummary complaints={complaints} selectedStatus={statusFilter} onSelectStatus={setStatusFilter} />
+      <ComplaintsSummary complaints={scopedComplaints} selectedStatus={statusFilter} onSelectStatus={setStatusFilter} />
 
       {isLoading ? (
         <p className="empty-state">Loading…</p>

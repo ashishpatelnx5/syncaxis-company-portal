@@ -1,9 +1,11 @@
 import { Router } from 'express'
 import { getPool, sql } from '../config/db.js'
-import { requireAuth } from '../middleware/auth.js'
+import { auditContext, writeAuditLog } from '../lib/audit.js'
+import { requireAuth, requirePermission } from '../middleware/auth.js'
 
 const router = Router()
 router.use(requireAuth)
+const requireAdminHolidays = requirePermission('page', 'admin-holidays')
 
 function toHoliday(row) {
   return {
@@ -24,7 +26,7 @@ router.get('/', async (req, res, next) => {
   }
 })
 
-router.post('/', async (req, res, next) => {
+router.post('/', requireAdminHolidays, async (req, res, next) => {
   try {
     const body = req.body || {}
     const name = (body.name || '').trim()
@@ -52,13 +54,15 @@ router.post('/', async (req, res, next) => {
       .input('id', sql.Int, insertResult.recordset[0].HolidayId)
       .query('SELECT * FROM portal.Holidays WHERE HolidayId = @id')
 
-    res.status(201).json(toHoliday(result.recordset[0]))
+    const holiday = toHoliday(result.recordset[0])
+    writeAuditLog({ ...auditContext(req), eventType: 'CREATE', entityType: 'Holiday', entityId: holiday.id, detail: `Created "${holiday.name}" on ${holiday.date} (${holiday.type})` })
+    res.status(201).json(holiday)
   } catch (err) {
     next(err)
   }
 })
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', requireAdminHolidays, async (req, res, next) => {
   try {
     const body = req.body || {}
     const name = (body.name || '').trim()
@@ -67,6 +71,9 @@ router.put('/:id', async (req, res, next) => {
     if (!['National', 'Festival'].includes(body.type)) return res.status(400).json({ error: 'Type must be National or Festival.' })
 
     const pool = await getPool()
+    const previous = await pool.request().input('id', sql.Int, req.params.id).query('SELECT HolidayDate, Name, Type FROM portal.Holidays WHERE HolidayId = @id')
+    const before = previous.recordset[0]
+
     // Same OUTPUT-vs-trigger restriction as the insert above — plain
     // update, then a separate select.
     const updateResult = await pool
@@ -84,21 +91,37 @@ router.put('/:id', async (req, res, next) => {
       .input('id', sql.Int, req.params.id)
       .query('SELECT * FROM portal.Holidays WHERE HolidayId = @id')
 
-    res.json(toHoliday(result.recordset[0]))
+    const holiday = toHoliday(result.recordset[0])
+    const beforeDate = before?.HolidayDate ? before.HolidayDate.toISOString().slice(0, 10) : null
+    const changes = []
+    if (before?.Name && before.Name !== holiday.name) changes.push(`Name: "${before.Name}" → "${holiday.name}"`)
+    if (beforeDate && beforeDate !== holiday.date) changes.push(`Date: ${beforeDate} → ${holiday.date}`)
+    if (before?.Type && before.Type !== holiday.type) changes.push(`Type: ${before.Type} → ${holiday.type}`)
+    const detail = changes.length > 0 ? `Updated "${holiday.name}" — ${changes.join(', ')}` : `Updated "${holiday.name}" (${holiday.date})`
+    writeAuditLog({ ...auditContext(req), eventType: 'UPDATE', entityType: 'Holiday', entityId: holiday.id, detail })
+    res.json(holiday)
   } catch (err) {
     next(err)
   }
 })
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', requireAdminHolidays, async (req, res, next) => {
   try {
     const pool = await getPool()
+    const existing = await pool.request().input('id', sql.Int, req.params.id).query('SELECT Name FROM portal.Holidays WHERE HolidayId = @id')
     const result = await pool
       .request()
       .input('id', sql.Int, req.params.id)
       .query('DELETE FROM portal.Holidays WHERE HolidayId = @id')
 
     if (result.rowsAffected[0] === 0) return res.status(404).json({ error: 'Holiday not found.' })
+    writeAuditLog({
+      ...auditContext(req),
+      eventType: 'DELETE',
+      entityType: 'Holiday',
+      entityId: req.params.id,
+      detail: existing.recordset[0]?.Name ? `Deleted "${existing.recordset[0].Name}"` : 'Deleted',
+    })
     res.status(204).end()
   } catch (err) {
     next(err)

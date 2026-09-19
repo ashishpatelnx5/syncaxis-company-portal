@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import DailyPlanSheet from '../components/DailyPlanSheet'
 import MonthCalendar from '../components/MonthCalendar'
+import { useAuth } from '../context/useAuth'
 import { useEmployees } from '../context/useEmployees'
 import { apiFetch } from '../utils/api'
-import { getWhoAmI, setWhoAmI } from '../utils/whoAmI'
 
 function currentMonthKey() {
   const d = new Date()
@@ -12,16 +12,12 @@ function currentMonthKey() {
 
 export default function DailyPlan() {
   const { employees } = useEmployees()
-  const [employeeId, setEmployeeId] = useState(getWhoAmI)
+  const { user } = useAuth()
+  const employeeId = user?.employeeId ?? ''
   const [monthKey, setMonthKey] = useState(currentMonthKey)
   const [statusByDate, setStatusByDate] = useState({})
   const [selectedDate, setSelectedDate] = useState(null)
   const [loading, setLoading] = useState(false)
-
-  function chooseEmployee(id) {
-    setEmployeeId(id)
-    setWhoAmI(id)
-  }
 
   useEffect(() => {
     if (!employeeId) return
@@ -35,7 +31,6 @@ export default function DailyPlan() {
       .finally(() => setLoading(false))
   }, [employeeId, monthKey])
 
-  const sortedEmployees = employees.slice().sort((a, b) => a.name.localeCompare(b.name))
   const selectedEmployee = employees.find((e) => String(e.id) === String(employeeId))
 
   return (
@@ -44,18 +39,6 @@ export default function DailyPlan() {
         <h1>Daily Plan</h1>
         <p className="page-subtitle">Fill in your daily plan sheet and track your self-assessment over time.</p>
       </header>
-
-      <label className="form-field daily-plan-whoami">
-        <span>Who are you?</span>
-        <select value={employeeId} onChange={(e) => chooseEmployee(e.target.value)}>
-          <option value="">— Select your name —</option>
-          {sortedEmployees.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name}
-            </option>
-          ))}
-        </select>
-      </label>
 
       {employeeId ? (
         loading && Object.keys(statusByDate).length === 0 ? (
@@ -70,7 +53,7 @@ export default function DailyPlan() {
           />
         )
       ) : (
-        <p className="empty-state">Pick your name above to view or fill in your daily plan.</p>
+        <p className="empty-state">Your account isn't linked to an employee record, so a daily plan can't be shown.</p>
       )}
 
       {selectedDate && selectedEmployee && (

@@ -8,6 +8,10 @@
   --accent: #4f46e5;
   --accent-soft: rgba(79, 70, 229, 0.1);
   --accent-contrast: #ffffff;
+  --danger: #ef4444;
+  --danger-contrast: #ffffff;
+  --success: #15803d;
+  --success-contrast: #ffffff;
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.06);
   --shadow-md: 0 4px 10px rgba(16, 24, 40, 0.08);
   --radius: 12px;
@@ -121,14 +125,22 @@ button, input, select {
   display: flex;
   align-items: center;
   padding: 18px 20px;
+  cursor: pointer;
+  min-width: 0;
 }
 
 .brand-logo {
-  height: 40px;
-  width: auto;
+  height: 52px;
+  width: 100%;
   max-width: 100%;
   object-fit: contain;
   border-radius: 6px;
+  /* Both width and height are bounded (not just height, with width left to
+     the intrinsic aspect ratio) so object-fit: contain can guarantee the
+     logo never exceeds the sidebar regardless of the source image's own
+     proportions. border-box absorbs the dark-theme padding below into that
+     same box instead of adding to it. */
+  box-sizing: border-box;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -148,6 +160,13 @@ button, input, select {
   flex-direction: column;
   gap: 2px;
   padding: 8px 12px;
+  /* Brand/user-info above and the footer below stay fixed; this is the only
+     part of the sidebar that scrolls once expanded groups push it past the
+     viewport. min-height: 0 overrides the flex-item default of "auto",
+     which would otherwise force the sidebar to grow instead of scrolling. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .nav-link {
@@ -161,16 +180,35 @@ button, input, select {
   font-size: 14px;
 }
 
-.nav-group-toggle {
-  width: 100%;
+/* A group can be a plain toggle (Admin — no page of its own) or a clickable
+   label plus a separate chevron toggle (Organisation — also a real page).
+   Both live in this one flex row so the label can be a <button> or a
+   <NavLink> without changing the layout. */
+.nav-group-header {
+  display: flex;
+  align-items: center;
+}
+
+.nav-group-link {
+  flex: 1;
+  min-width: 0;
   border: none;
   background: none;
   text-align: left;
   cursor: pointer;
 }
 
+.nav-group-chevron-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  padding: 9px 12px 9px 4px;
+}
+
 .nav-group-chevron {
-  margin-left: auto;
   transition: transform 0.15s ease;
 }
 
@@ -234,6 +272,17 @@ button, input, select {
   font-size: 12.5px;
   font-weight: 600;
   color: var(--text);
+  text-decoration: none;
+}
+
+.sidebar-last-login {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.sidebar-user:hover {
+  color: var(--accent);
 }
 
 .sidebar-tagline {
@@ -267,11 +316,58 @@ button, input, select {
 }
 
 .page {
-  max-width: 1100px;
-  margin: 0 auto;
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 28px;
+}
+
+.tab-strip {
+  width: 100%;
+  margin: 0 0 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-link {
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  /* Reset browser default <button> chrome (background/border/radius) so a
+     <button className="tab-link"> (ProfileTabsShell) looks identical to the
+     <Link className="tab-link"> this was originally built for (Organisation
+     sub-nav) - anchors have no such defaults, so this is a no-op there. */
+  background: none;
+  border-radius: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.tab-link:hover {
+  color: var(--text);
+}
+
+.tab-link.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.profile-tabs-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.icon-flip {
+  transform: rotate(180deg);
 }
 
 .page-header h1 {
@@ -299,6 +395,30 @@ button, input, select {
   font-size: 13px;
   color: var(--accent);
   font-weight: 500;
+}
+
+/* Same look as .section-link, but reset for use on a <button> (e.g. a
+   document download trigger) instead of an <a>/<Link>, which has no such
+   default chrome to begin with. */
+.link-button {
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 500;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: underline;
+}
+
+.contact-emergency-toggle {
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* Stats */
@@ -586,6 +706,13 @@ button, input, select {
   font-size: 13px;
   font-weight: 500;
   color: var(--text-muted);
+  /* Also used on a <button> (the Delete action) alongside the <Link>s here -
+     strip button chrome so both render identically. */
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .back-link:hover {
@@ -648,10 +775,6 @@ button, input, select {
   padding: 0;
 }
 
-.mini-org-tree li > ul {
-  padding-left: 22px;
-}
-
 .mini-org-tree li::before,
 .mini-org-tree li::after {
   content: '';
@@ -687,42 +810,32 @@ button, input, select {
 
 .mini-person {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
   text-decoration: none;
   color: inherit;
-  max-width: 110px;
-}
-
-.mini-name {
-  font-size: 11.5px;
-  font-weight: 500;
-  color: var(--accent);
-  text-align: center;
-  line-height: 1.25;
-}
-
-a.mini-person:hover .mini-name {
-  text-decoration: underline;
-}
-
-.mini-person-self .mini-name {
-  font-weight: 700;
-  color: var(--text);
 }
 
 .mini-avatar {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   flex-shrink: 0;
+  transition: box-shadow 0.12s ease;
+}
+
+a.mini-person:hover .mini-avatar {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* No name label to make "you" bold anymore — a ring around the avatar
+   itself does the job instead. */
+.mini-avatar-self {
+  box-shadow: 0 0 0 2px var(--text);
 }
 
 .detail-grid {
@@ -744,12 +857,31 @@ a.mini-person:hover .mini-name {
   margin-bottom: 12px;
 }
 
+/* Multiple entries in one card (several emergency contacts/family members) -
+   each its own .detail-list, separated by a divider rather than running
+   together. */
+.detail-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detail-card-list dl:not(:first-child) {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
 .detail-list {
   margin: 0;
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 8px 14px;
   font-size: 13.5px;
+  /* Without this, a grid's implicit rows stretch to fill any extra height
+     from a taller sibling (e.g. the 3-row Emergency Contact list next to
+     this 2-row Email/Phone one in .contact-body) — pinning rows to the top
+     keeps Email/Phone at a fixed position regardless of what's beside it. */
+  align-content: start;
 }
 
 .detail-list dt {
@@ -769,10 +901,39 @@ a.mini-person:hover .mini-name {
   text-decoration: underline;
 }
 
-/* Org chart */
-.org-chart-scroll {
-  overflow-x: auto;
-  padding-bottom: 12px;
+/* Contact card body — a plain single .detail-list until Emergency Contact
+   is toggled open, then a second .detail-list sits to its right with a
+   vertical rule between them (see pages/Home.jsx). */
+.contact-body {
+  display: flex;
+  align-items: stretch;
+  gap: 20px;
+}
+
+.contact-body .detail-list {
+  flex: 1;
+}
+
+.contact-divider {
+  width: 1px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* Org chart — scaled via JS (see pages/Hierarchy.jsx) to fit the available
+   viewport space exactly, so the chart never needs its own scrollbar. */
+.org-chart-fit {
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+}
+
+.org-chart-scale {
+  transform-origin: top center;
+  /* Always report its true natural (max-content) size to the JS that
+     measures it — scaling to fit is handled entirely by the transform,
+     not by the flex layout shrinking this item. */
+  flex-shrink: 0;
 }
 
 .org-tree, .org-tree ul {
@@ -933,6 +1094,19 @@ a.mini-person:hover .mini-name {
   transform: rotate(90deg);
 }
 
+/* .org-avatar's negative margin-bottom and .org-toggle's negative
+   margin-top exist to overlap them onto .org-card above/below — with no
+   card in compact mode (see components/OrgNode.jsx), those would instead
+   overlap the toggle badge onto the avatar itself. Reset to a small
+   positive gap instead. */
+.org-node-compact .org-avatar {
+  margin-bottom: 0;
+}
+
+.org-node-compact .org-toggle {
+  margin-top: 6px;
+}
+
 /* Detail page toolbar */
 .detail-toolbar {
   display: flex;
@@ -940,9 +1114,14 @@ a.mini-person:hover .mini-name {
   justify-content: space-between;
 }
 
-/* Buttons */
+/* Buttons - one color per action type, used the same way on every page:
+   primary = edit/update/save, create = add/create new, secondary =
+   previous/next step navigation, cancel = discard/close, danger = delete. */
 .btn-primary,
-.btn-secondary {
+.btn-secondary,
+.btn-cancel,
+.btn-danger,
+.btn-create {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -963,6 +1142,15 @@ a.mini-person:hover .mini-name {
   opacity: 0.92;
 }
 
+.btn-create {
+  background: var(--success);
+  color: var(--success-contrast);
+}
+
+.btn-create:hover {
+  opacity: 0.92;
+}
+
 .btn-secondary {
   background: var(--surface);
   border-color: var(--border);
@@ -972,6 +1160,32 @@ a.mini-person:hover .mini-name {
 .btn-secondary:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.btn-cancel {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.btn-cancel:hover {
+  border-color: var(--text-muted);
+  opacity: 0.85;
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: var(--danger-contrast);
+}
+
+.btn-danger:hover {
+  opacity: 0.92;
+}
+
+.detail-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* Admin page */
@@ -1027,6 +1241,14 @@ a.mini-person:hover .mini-name {
 
 .admin-table tr:last-child td {
   border-bottom: none;
+}
+
+.admin-row-clickable {
+  cursor: pointer;
+}
+
+.admin-row-clickable:hover {
+  background: var(--surface-2);
 }
 
 .admin-name-cell {
@@ -1241,7 +1463,7 @@ a.mini-person:hover .mini-name {
 }
 
 .icon-btn-danger:hover {
-  color: #ef4444;
+  color: var(--danger);
 }
 
 /* Modal / form */
@@ -1405,6 +1627,25 @@ a.mini-person:hover .mini-name {
 
 .form-row-3 .form-field {
   min-width: 140px;
+}
+
+.identity-field-row {
+  align-items: flex-end;
+  margin-bottom: 14px;
+}
+
+.identity-field-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.repeatable-row {
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.repeatable-row-remove {
+  flex: 0 0 auto;
 }
 
 .avatar-upload {
@@ -1574,6 +1815,9 @@ a.mini-person:hover .mini-name {
 }
 
 .jd-holder-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 5px 12px;
   border-radius: 999px;
   background: var(--accent-soft);
@@ -1584,22 +1828,37 @@ a.mini-person:hover .mini-name {
 
 /* Login */
 .login-screen {
+  --login-navy: #16324f;
+  --login-navy-dark: #0f2337;
+  --login-steel: #3e6b94;
+  --login-surface: #ffffff;
+  --login-border: #e2e6ea;
+  --login-text: #1f2937;
+  --login-text-muted: #6b7280;
+  --login-red: #a6423a;
+
+  /* The login card is always light regardless of the app's own theme
+     toggle - without this, native form-control chrome (the password
+     toggle button in particular) still renders using the page's dark
+     color-scheme even though we override the colors we style directly. */
+  color-scheme: light;
+
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
-  background: var(--bg);
+  padding: 24px;
+  background: var(--login-navy-dark);
 }
 
 .login-card {
   width: 100%;
   max-width: 340px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-md);
-  padding: 28px;
+  background: #ffffff;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  padding: 36px 32px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -1607,39 +1866,88 @@ a.mini-person:hover .mini-name {
 }
 
 .login-logo {
-  height: 40px;
-  width: auto;
+  width: 100%;
+  max-width: 220px;
+  height: auto;
   align-self: center;
   border-radius: 6px;
 }
 
-@media (prefers-color-scheme: dark) {
-  .login-logo {
-    background: #fff;
-    padding: 6px 10px;
-  }
-}
-
-:root[data-theme='dark'] .login-logo {
-  background: #fff;
-  padding: 6px 10px;
-}
-
 .login-card h1 {
-  font-size: 20px;
-}
-
-.login-card .page-subtitle {
-  margin-top: -8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--login-navy);
 }
 
 .login-card .form-field {
+  text-align: left;
+  color: var(--login-text-muted);
+}
+
+.login-card .form-field input {
+  background: var(--login-surface);
+  border-color: var(--login-border);
+  color: var(--login-text);
+}
+
+.login-card .form-field input:focus {
+  outline-color: var(--login-steel);
+}
+
+.login-card .password-toggle {
+  background: none;
+  border: none;
+  color: var(--login-text-muted);
+}
+.login-card .password-toggle:hover {
+  color: var(--login-navy);
+}
+
+.login-error {
+  background: #fbeaea;
+  color: var(--login-red);
+  border: 1px solid var(--login-red);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  min-height: 42px;
+  box-sizing: border-box;
   text-align: left;
 }
 
 .login-submit {
   justify-content: center;
   margin-top: 4px;
+  background: var(--login-navy);
+  border-color: var(--login-navy);
+  color: #ffffff;
+}
+.login-submit:hover {
+  background: var(--login-steel);
+  border-color: var(--login-steel);
+}
+
+.phone-input {
+  display: flex;
+}
+
+.phone-input-prefix {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 13.5px;
+}
+
+.phone-input input {
+  flex: 1;
+  min-width: 0;
+  border-radius: 0 8px 8px 0 !important;
 }
 
 .password-field {

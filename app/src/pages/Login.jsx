@@ -36,8 +36,11 @@ export default function Login() {
     <div className="login-screen">
       <form className="login-card" onSubmit={handleSubmit}>
         <img src={logo} alt="Syncaxis" className="login-logo" />
-        <h1>Sign in</h1>
-        <p className="page-subtitle">Syncaxis Company Portal</p>
+        <h1>Syncaxis Company Portal</h1>
+
+        <div className="login-error" style={{ visibility: error ? 'visible' : 'hidden' }}>
+          {error || ' '}
+        </div>
 
         <label className="form-field">
           <span>Username</span>
@@ -62,8 +65,6 @@ export default function Login() {
             </button>
           </div>
         </label>
-
-        {error && <p className="form-error">{error}</p>}
 
         <button type="submit" className="btn-primary login-submit" disabled={submitting}>
           {submitting ? 'Signing in…' : 'Sign in'}

@@ -147,7 +147,7 @@ export default function ComplaintForm({ complaint, employeeId, showAdminFields =
 
         <div className="modal-footer">
           {error && <p className="form-error">{error}</p>}
-          <button type="button" className="btn-secondary" onClick={onClose}>
+          <button type="button" className="btn-cancel" onClick={onClose}>
             Cancel
           </button>
           <button type="submit" className="btn-primary" disabled={submitting}>

@@ -127,7 +127,7 @@ without a `.env` file at all:
 | `VITE_ERP_URL` | ERP quick link | `http://erp.syncaxis.com/login` |
 | `VITE_ERP_DASHBOARD_URL` | ERP Dashboard quick link | `http://192.168.3.9:8055/` |
 | `VITE_GREYTHR_URL` | GreytHR quick link | `https://syncaxis.greythr.com/` |
-| `VITE_INQUIRY_URL` | Inquiry portal quick link | `https://inquiry.syncaxis.com/` |
+| `VITE_INQUIRY_URL` | Enquiry portal quick link | `https://inquiry.syncaxis.com/` |
 
 See `app/server/.env.example` for the backend's own variables (database
 connection, JWT secret, CORS origin).

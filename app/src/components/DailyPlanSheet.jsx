@@ -200,7 +200,7 @@ export default function DailyPlanSheet({ employeeId, employeeName, date, onClose
 
       <div className="daily-plan-panel-footer">
         {error && <p className="form-error">{error}</p>}
-        <button type="button" className="btn-secondary" onClick={onClose}>
+        <button type="button" className="btn-cancel" onClick={onClose}>
           Cancel
         </button>
         <button type="button" className="btn-primary" onClick={handleSave} disabled={loading || saving}>

@@ -48,7 +48,7 @@ export default function ComplaintsAdmin() {
             <p className="page-subtitle">Review, update status, or remove entries. Deleting is only available here.</p>
           </div>
           <div className="admin-header-actions">
-            <button type="button" className="btn-primary" onClick={() => setEditingId(null)}>
+            <button type="button" className="btn-create" onClick={() => setEditingId(null)}>
               <Icon name="plus" size={16} /> Add entry
             </button>
           </div>

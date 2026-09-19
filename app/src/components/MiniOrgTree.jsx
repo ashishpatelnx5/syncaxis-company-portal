@@ -1,22 +1,21 @@
 import { Link } from 'react-router-dom'
 import Avatar from './Avatar'
 
-// Icon stacked above the name (both centered) rather than side by side — the
-// connector lines split each <li> at its own horizontal center, which only
-// lines up with the icon when the icon is centered above the row instead of
-// sitting to the left of variable-width name text.
+// Icon only, no name label — matches the main Org Chart's compact mode.
+// The name (and title, if set) move into a native title attribute instead,
+// shown on hover. `isSelf` still gets a visibly different avatar (a ring)
+// so "you" stands out in the chain without needing text.
 function MiniPerson({ person, isSelf }) {
-  const content = (
-    <>
-      <Avatar name={person.name} photo={person.photo} className="mini-avatar" />
-      <span className="mini-name">{person.name}</span>
-    </>
-  )
+  const title = [person.name, person.title].filter(Boolean).join(' — ')
+  const avatar = <Avatar name={person.name} photo={person.photo} className={`mini-avatar ${isSelf ? 'mini-avatar-self' : ''}`} />
+
   return isSelf ? (
-    <span className="mini-person mini-person-self">{content}</span>
+    <span className="mini-person mini-person-self" title={title}>
+      {avatar}
+    </span>
   ) : (
-    <Link to={`/employee/${person.id}`} className="mini-person">
-      {content}
+    <Link to={`/employee/${person.id}`} className="mini-person" title={title}>
+      {avatar}
     </Link>
   )
 }
