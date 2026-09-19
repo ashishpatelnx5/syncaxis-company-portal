@@ -16,14 +16,8 @@ function formatDateTime(iso, fallback) {
 }
 
 export default function Account() {
-  const { user, refreshUser } = useAuth()
+  const { user } = useAuth()
   const [showChangePassword, setShowChangePassword] = useState(false)
-  const [justChanged, setJustChanged] = useState(false)
-
-  async function handlePasswordChanged() {
-    await refreshUser()
-    setJustChanged(true)
-  }
 
   return (
     <div className="page">
@@ -70,22 +64,12 @@ export default function Account() {
       </div>
 
       <div className="admin-header-actions" style={{ marginTop: 16 }}>
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => {
-            setJustChanged(false)
-            setShowChangePassword(true)
-          }}
-        >
+        <button type="button" className="btn-secondary" onClick={() => setShowChangePassword(true)}>
           <Icon name="lock" size={16} /> Change password
         </button>
-        {justChanged && <p className="form-hint" style={{ margin: 0 }}>Password changed.</p>}
       </div>
 
-      {showChangePassword && (
-        <ChangePasswordForm onClose={() => setShowChangePassword(false)} onChanged={handlePasswordChanged} />
-      )}
+      {showChangePassword && <ChangePasswordForm onClose={() => setShowChangePassword(false)} />}
     </div>
   )
 }

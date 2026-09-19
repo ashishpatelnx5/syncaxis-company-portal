@@ -18,9 +18,9 @@ function formatLastLogin(iso) {
 
 // `pageKeys` lists which permission key(s) (from src/data/permissions.js)
 // unlock this item — a plain nav link needs at least one to be granted, and
-// an admin group needs at least one visible child. `adminOnly` items (Users
-// management) ignore permissions entirely and just check the role. An item
-// with neither is always visible (Home).
+// an admin group needs at least one visible child. `adminOnly` items (the
+// syncaxis-iam link) ignore permissions entirely and just check the role.
+// An item with neither is always visible (Home).
 const navItems = [
   { to: '/', label: 'Home', icon: 'home', end: true },
   {
@@ -49,14 +49,14 @@ const navItems = [
       { to: '/admin/holidays', label: 'Holidays', icon: 'calendar', pageKeys: ['admin-holidays'] },
       { to: '/admin/daily-plans', label: 'Team Daily Plans', icon: 'clipboard', pageKeys: ['admin-daily-plans'] },
       { to: '/admin/complaints', label: 'Complaints & Feedback', icon: 'flag', pageKeys: ['admin-complaints'] },
+      { to: '/admin/audit-log', label: 'Audit Log', icon: 'clipboard', adminOnly: true },
+      // User/role/group management moved to syncaxis-iam — Portal no longer
+      // manages identity itself (see portal-integration-instructions.md §8).
       {
-        label: 'Access Control',
+        href: import.meta.env.VITE_IAM_ADMIN_URL || 'http://localhost:8054/admin-ui',
+        label: 'Identity & Access (syncaxis-iam)',
         icon: 'shield',
-        children: [
-          { to: '/admin/users', label: 'Users', icon: 'key', adminOnly: true },
-          { to: '/admin/roles', label: 'Roles', icon: 'shield', adminOnly: true },
-          { to: '/admin/user-groups', label: 'User Groups', icon: 'users', adminOnly: true },
-        ],
+        adminOnly: true,
       },
     ],
   },
@@ -152,6 +152,19 @@ function NavGroup({ item, onNavigate, depth = 1 }) {
           {item.children.map((child) =>
             child.children ? (
               <NavGroup key={child.label} item={child} onNavigate={onNavigate} depth={depth + 1} />
+            ) : child.href ? (
+              <a
+                key={child.href}
+                href={child.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="nav-link nav-sublink"
+                onClick={onNavigate}
+              >
+                <Icon name={child.icon} size={16} />
+                <span>{child.label}</span>
+                <Icon name="external" size={12} />
+              </a>
             ) : (
               <NavLink
                 key={child.to}

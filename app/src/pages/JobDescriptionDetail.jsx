@@ -1,36 +1,68 @@
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import Icon from '../components/Icon'
+import { useAuth } from '../context/useAuth'
 import { useDepartments } from '../context/useDepartments'
 import { useEmployees } from '../context/useEmployees'
 import { useJobDescriptions } from '../context/useJobDescriptions'
 
-export default function JobDescriptionDetail() {
+// adminContext: true when mounted at /admin/job-descriptions/:id (reached by
+// clicking a row in Admin > Job Descriptions) rather than the general
+// /job-descriptions/:id (reached from the org-wide Job Descriptions page) -
+// same page either way, just a different "back" destination and Edit/Delete
+// only show for accounts holding admin-job-descriptions.
+export default function JobDescriptionDetail({ adminContext = false }) {
   const { id } = useParams()
-  const { jobDescriptions, isLoading } = useJobDescriptions()
+  const navigate = useNavigate()
+  const { hasPage } = useAuth()
+  const { jobDescriptions, isLoading, deleteJobDescription } = useJobDescriptions()
   const { departments } = useDepartments()
-  const { employees } = useEmployees()
+  const { employees, refresh: refreshEmployees } = useEmployees()
+  const canManage = hasPage('admin-job-descriptions')
+  const backTo = adminContext ? '/admin/job-descriptions' : '/job-descriptions'
 
   const jobDescription = jobDescriptions.find((jd) => String(jd.id) === id)
   // Wait for the fetch to finish before deciding this id doesn't exist — on
   // a fresh page load (a bookmarked link, a refresh) the list starts empty.
   if (isLoading) return null
-  if (!jobDescription) return <Navigate to="/job-descriptions" replace />
+  if (!jobDescription) return <Navigate to={backTo} replace />
 
   const department = departments.find((d) => d.id === jobDescription.departmentId)
   const holders = employees.filter((e) => e.jobDescriptionId === jobDescription.id)
   const c = jobDescription.content || {}
 
+  async function handleDelete() {
+    const warning =
+      holders.length > 0
+        ? `${holders.length} ${holders.length === 1 ? 'person is' : 'people are'} assigned "${jobDescription.title}". They'll become unassigned. Delete this job description anyway?`
+        : `Delete "${jobDescription.title}"? This can't be undone.`
+    if (window.confirm(warning)) {
+      await deleteJobDescription(jobDescription.id)
+      // The server clears JobDescriptionId on anyone who held it as part of
+      // the same delete — refetch so the UI matches.
+      refreshEmployees()
+      navigate(backTo)
+    }
+  }
+
   return (
     <div className="page">
       <div className="detail-toolbar">
-        <Link to="/job-descriptions" className="back-link">
+        <Link to={backTo} className="back-link">
           <Icon name="chevron" size={14} className="back-icon" />
-          Back to job descriptions
+          {adminContext ? 'Back to Job Descriptions' : 'Back to job descriptions'}
         </Link>
-        <Link to={`/admin/job-descriptions?edit=${jobDescription.id}`} className="back-link">
-          <Icon name="edit" size={14} />
-          Edit
-        </Link>
+        {canManage && (
+          <div className="detail-toolbar-actions">
+            <Link to={`/admin/job-descriptions/${jobDescription.id}/edit`} className="btn-primary">
+              <Icon name="edit" size={14} />
+              Edit
+            </Link>
+            <button type="button" className="btn-danger" onClick={handleDelete}>
+              <Icon name="trash" size={14} />
+              Delete
+            </button>
+          </div>
+        )}
       </div>
 
       <header className="page-header">
@@ -46,7 +78,7 @@ export default function JobDescriptionDetail() {
           <h2>Assigned to</h2>
           <div className="jd-holder-list">
             {holders.map((e) => (
-              <Link key={e.id} to={`/employee/${e.id}`} className="jd-holder-chip">
+              <Link key={e.id} to={adminContext ? `/admin/employees/${e.id}` : `/employee/${e.id}`} className="jd-holder-chip">
                 {e.name}
               </Link>
             ))}

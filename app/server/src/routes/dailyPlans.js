@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { getPool, sql } from '../config/db.js'
+import { auditContext, writeAuditLog } from '../lib/audit.js'
 import { requireAuth, requirePermission } from '../middleware/auth.js'
 
 const router = Router()
@@ -204,6 +205,15 @@ router.put('/:employeeId/:date', requireDailyPlan, async (req, res, next) => {
     }
 
     await transaction.commit()
+    const employeeResult = await pool.request().input('id', sql.Int, employeeId).query('SELECT Name FROM portal.Employees WHERE EmployeeId = @id')
+    const employeeName = employeeResult.recordset[0]?.Name
+    writeAuditLog({
+      ...auditContext(req),
+      eventType: 'UPDATE',
+      entityType: 'DailyPlan',
+      entityId: `${employeeId}/${date}`,
+      detail: employeeName ? `Saved daily plan for ${employeeName} — ${date}` : `Saved daily plan for ${date}`,
+    })
     res.json({ employeeId, date, selfAssessment, slots })
   } catch (err) {
     await transaction.rollback().catch(() => {})

@@ -10,7 +10,10 @@ import Icon from './Icon'
 // EmployeeDetail (anyone's record) so both stay visually identical.
 export default function ContactPanel({ employee }) {
   const [showEmergency, setShowEmergency] = useState(false)
-  const emergency = employee.emergencyContact ?? {}
+  // This card is visible directory-wide, not just to admins/the employee -
+  // a compact summary, so only the primary (first) emergency contact shows
+  // here even if more are on file; the full list lives in My Profile.
+  const emergency = employee.emergencyContacts?.[0] ?? {}
 
   return (
     <section className="detail-card">

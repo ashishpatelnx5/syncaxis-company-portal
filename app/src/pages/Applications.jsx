@@ -3,8 +3,8 @@ import { useAuth } from '../context/useAuth'
 import { apps } from '../data/apps'
 
 export default function Applications() {
-  const { hasApp } = useAuth()
-  const visibleApps = apps.filter((app) => hasApp(app.id))
+  const { user, hasApp } = useAuth()
+  const visibleApps = apps.filter((app) => (app.adminOnly ? user?.isAdmin : hasApp(app.id)))
 
   return (
     <div className="page">

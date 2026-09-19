@@ -17,7 +17,7 @@ export default function Home() {
   const { departments } = useDepartments()
   const { user, hasApp } = useAuth()
   const [lightboxOpen, setLightboxOpen] = useState(false)
-  const visibleApps = apps.filter((app) => hasApp(app.id))
+  const visibleApps = apps.filter((app) => (app.adminOnly ? user?.isAdmin : hasApp(app.id)))
   const myEmployee = employees.find((e) => e.id === user?.employeeId)
 
   const departmentNames = myEmployee
@@ -60,7 +60,7 @@ export default function Home() {
               </p>
               {managerName && <p className="page-subtitle">Reports to {managerName}</p>}
             </div>
-            <Link to="/my-profile" className="back-link" style={{ marginLeft: 'auto', alignSelf: 'flex-start' }}>
+            <Link to="/my-profile" className="btn-primary" style={{ marginLeft: 'auto', alignSelf: 'flex-start' }}>
               <Icon name="edit" size={14} />
               Edit
             </Link>

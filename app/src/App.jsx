@@ -4,28 +4,30 @@ import ProtectedPage from './components/ProtectedPage'
 import RequireAuth from './components/RequireAuth'
 import Account from './pages/Account'
 import Admin from './pages/Admin'
+import AuditLog from './pages/AuditLog'
 import Home from './pages/Home'
 import Applications from './pages/Applications'
 import Complaints from './pages/Complaints'
 import ComplaintsAdmin from './pages/ComplaintsAdmin'
 import DailyPlan from './pages/DailyPlan'
+import DepartmentDetail from './pages/DepartmentDetail'
+import DepartmentEdit from './pages/DepartmentEdit'
 import Departments from './pages/Departments'
 import Directory from './pages/Directory'
 import EmployeeDetail from './pages/EmployeeDetail'
+import EmployeeEdit from './pages/EmployeeEdit'
 import Hierarchy from './pages/Hierarchy'
 import Holidays from './pages/Holidays'
 import HolidaysAdmin from './pages/HolidaysAdmin'
 import JobDescriptionDetail from './pages/JobDescriptionDetail'
+import JobDescriptionEdit from './pages/JobDescriptionEdit'
 import JobDescriptions from './pages/JobDescriptions'
 import JobDescriptionsAdmin from './pages/JobDescriptionsAdmin'
 import Login from './pages/Login'
 import MyProfile from './pages/MyProfile'
 import Organisation from './pages/Organisation'
 import OrganisationOverview from './pages/OrganisationOverview'
-import RolesAdmin from './pages/RolesAdmin'
 import TeamDailyPlans from './pages/TeamDailyPlans'
-import UserGroupsAdmin from './pages/UserGroupsAdmin'
-import UsersAdmin from './pages/UsersAdmin'
 
 function App() {
   return (
@@ -129,6 +131,22 @@ function App() {
               }
             />
             <Route
+              path="employees/:id"
+              element={
+                <ProtectedPage pageKey="admin-employees">
+                  <EmployeeDetail adminContext />
+                </ProtectedPage>
+              }
+            />
+            <Route
+              path="employees/:id/edit"
+              element={
+                <ProtectedPage pageKey="admin-employees">
+                  <EmployeeEdit />
+                </ProtectedPage>
+              }
+            />
+            <Route
               path="departments"
               element={
                 <ProtectedPage pageKey="admin-departments">
@@ -137,10 +155,42 @@ function App() {
               }
             />
             <Route
+              path="departments/:id"
+              element={
+                <ProtectedPage pageKey="admin-departments">
+                  <DepartmentDetail />
+                </ProtectedPage>
+              }
+            />
+            <Route
+              path="departments/:id/edit"
+              element={
+                <ProtectedPage pageKey="admin-departments">
+                  <DepartmentEdit />
+                </ProtectedPage>
+              }
+            />
+            <Route
               path="job-descriptions"
               element={
                 <ProtectedPage pageKey="admin-job-descriptions">
                   <JobDescriptionsAdmin />
+                </ProtectedPage>
+              }
+            />
+            <Route
+              path="job-descriptions/:id"
+              element={
+                <ProtectedPage pageKey="admin-job-descriptions">
+                  <JobDescriptionDetail adminContext />
+                </ProtectedPage>
+              }
+            />
+            <Route
+              path="job-descriptions/:id/edit"
+              element={
+                <ProtectedPage pageKey="admin-job-descriptions">
+                  <JobDescriptionEdit />
                 </ProtectedPage>
               }
             />
@@ -169,26 +219,10 @@ function App() {
               }
             />
             <Route
-              path="users"
+              path="audit-log"
               element={
                 <ProtectedPage adminOnly>
-                  <UsersAdmin />
-                </ProtectedPage>
-              }
-            />
-            <Route
-              path="roles"
-              element={
-                <ProtectedPage adminOnly>
-                  <RolesAdmin />
-                </ProtectedPage>
-              }
-            />
-            <Route
-              path="user-groups"
-              element={
-                <ProtectedPage adminOnly>
-                  <UserGroupsAdmin />
+                  <AuditLog />
                 </ProtectedPage>
               }
             />
