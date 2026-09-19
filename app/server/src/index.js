@@ -1,5 +1,11 @@
-import app from './app.js'
+import { captureConsole } from './config/logger.js'
 import { env } from './config/env.js'
+
+// Before anything else runs, so every console.* call after this is also
+// written to the log file.
+captureConsole()
+
+const { default: app } = await import('./app.js')
 
 // Without these, an error thrown outside a request's try/catch (or a
 // rejected promise nobody awaited) crashes the process with no trace in
